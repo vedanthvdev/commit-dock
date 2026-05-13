@@ -3,6 +3,13 @@
 # builds the VSIX and creates/updates the GitHub Release (and publishes to the
 # Marketplace when VSCE_PAT is set).
 #
+# GitHub does not run *other* workflows when a tag is pushed using the default
+# `GITHUB_TOKEN`. Use repository secret **TAG_PUSH_TOKEN** (classic PAT with
+# `repo` scope, or a fine-grained PAT with Contents: Read and write) so the tag
+# push is attributed to a real user/app and `release.yml` runs automatically.
+# If the secret is missing, the workflow still pushes the tag with `GITHUB_TOKEN`
+# and prints a notice — run **Release** manually (workflow_dispatch) for that tag.
+#
 # If the version is unchanged, this workflow does nothing (no duplicate releases).
 
 name: Auto-tag version on master
@@ -34,6 +41,7 @@ jobs:
         env:
           BEFORE_SHA: ${{ github.event.before }}
           AFTER_SHA: ${{ github.sha }}
+          TAG_PUSH_TOKEN: ${{ secrets.TAG_PUSH_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -73,4 +81,11 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git tag "${TAG}" "${AFTER_SHA}"
-          git push origin "refs/tags/${TAG}"
+
+          if [ -n "${TAG_PUSH_TOKEN}" ]; then
+            echo "Pushing tag using TAG_PUSH_TOKEN so follow-up workflows (Release) can run."
+            git push "https://x-access-token:${TAG_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}"
+          else
+            echo "::notice::TAG_PUSH_TOKEN is not set. Pushing with GITHUB_TOKEN — GitHub will not trigger other workflows for this push. Add repository secret TAG_PUSH_TOKEN (PAT with repo scope), or run Actions → Release → workflow_dispatch for tag ${TAG}."
+            git push origin "refs/tags/${TAG}"
+          fi

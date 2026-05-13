@@ -77,17 +77,25 @@ Releases are **SemVer tags** `vX.Y.Z` that match **`package.json` `version`**.
 
 If you merge **without** changing `version`, **no tag** is created and **no new release** runs (by design).
 
-**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** (or a PAT with `contents: write`) so the auto-tag job can **push tags**. If pushes are blocked, the “Auto-tag version on master” workflow will fail at `git push`.
+**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** so Actions can push tags.
+
+**Why releases sometimes did not appear:** GitHub **does not trigger other workflows** when a tag is pushed using the default **`GITHUB_TOKEN`** (so `release.yml` never ran after auto-tag). Fix by adding a repository secret **`TAG_PUSH_TOKEN`**: a **classic PAT** with **`repo`** scope (or a fine-grained PAT with **Contents: Read and write** on this repo). Auto-tag uses it for `git push` so the **Release** workflow runs. If the secret is absent, you still get the tag on the remote; run **Actions → Release → Run workflow** and enter the tag (e.g. `v0.9.3`) to build the VSIX and create the GitHub Release.
+
+### Manual release for an existing tag
+
+1. Open **Actions** → **Release** → **Run workflow**.
+2. Enter the tag (e.g. **`v0.9.3`**) that already exists on GitHub.
+3. The workflow checks out that tag, builds the VSIX, and creates or updates the release.
 
 ### Manual tag (optional)
 
-You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master`.
+You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master` (a normal user push **does** trigger `release.yml`).
 
 ### Marketplace secret
 
 Add **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope) if you want **`vsce publish`**. Without it, the **GitHub Release** is still created.
 
-**If older tags never created a Release**, merge fixes, bump version once, merge — or create a release manually and upload a VSIX from `npm run package` locally.
+**If older tags never created a Release**, use **Run workflow** on **Release** for that tag after merging this fix, or bump `version` again on `master` (with `TAG_PUSH_TOKEN` set so automation chains correctly).
 
 ## Versioning
 

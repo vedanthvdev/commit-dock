@@ -5,8 +5,8 @@
 # Tags are usually created by auto-tag-on-master.yml when package.json version
 # changes on master. You can still push a tag manually.
 #
-# Previously the workflow failed before creating a GitHub Release when VSCE_PAT
-# was missing, which left the Releases page empty for new tags.
+# Manual run: Actions → Release → Run workflow → enter an existing tag (e.g. v0.9.3)
+# if a tag was pushed by GITHUB_TOKEN and did not trigger this workflow.
 #
 # Optional repository secret (Marketplace only):
 #   VSCE_PAT — PAT with "Marketplace (Manage)" scope
@@ -18,6 +18,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing SemVer tag (e.g. v0.9.3). Must already exist on the remote.'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -27,17 +33,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+          fetch-depth: 0
+
+      - name: Resolve release tag name
+        id: rel_tag
+        shell: bash
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "name=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
       - name: Verify tag matches package.json version
+        env:
+          TAG_NAME: ${{ steps.rel_tag.outputs.name }}
         run: |
           PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          TAG_VERSION="${TAG_NAME#v}"
           if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match package.json version $PKG_VERSION (expected v$PKG_VERSION)"
+            echo "::error::Tag $TAG_NAME does not match package.json version $PKG_VERSION (expected v$PKG_VERSION)"
             exit 1
           fi
 
@@ -53,6 +74,7 @@ jobs:
       - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.rel_tag.outputs.name }}
         run: |
           set -euo pipefail
           VSIX="$(ls -1 ./*.vsix | head -n1)"
@@ -60,18 +82,19 @@ jobs:
             echo "::error::No VSIX found after npm run package"
             exit 1
           fi
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
             echo "Release exists; uploading VSIX (replace if present)"
-            gh release upload "$GITHUB_REF_NAME" "$VSIX" --clobber
+            gh release upload "$TAG_NAME" "$VSIX" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "$VSIX" \
-              --title "Commit Dock ${GITHUB_REF_NAME}" \
+            gh release create "$TAG_NAME" "$VSIX" \
+              --title "Commit Dock ${TAG_NAME}" \
               --generate-notes
           fi
 
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          TAG_NAME: ${{ steps.rel_tag.outputs.name }}
         run: |
           if [ -z "${VSCE_PAT}" ]; then
             echo "::notice::VSCE_PAT is not set — skipping Marketplace publish. The GitHub Release with the VSIX is already available."
