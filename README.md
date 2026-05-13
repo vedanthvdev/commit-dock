@@ -69,17 +69,26 @@ CI runs on **pushes to `master`** and on **pull requests targeting `master`**.
 
 Releases are **SemVer tags** `vX.Y.Z` that match **`package.json` `version`**.
 
-### Automatic (recommended)
+### Automatic (label-driven)
 
-1. On a PR to **`master`**, bump **`package.json` `version`** and update **`CHANGELOG.md`** (and anything else for that release).
-2. **Merge** the PR. If the version string **changed** compared to the previous commit on `master`, [`.github/workflows/auto-tag-on-master.yml`](.github/workflows/auto-tag-on-master.yml) creates and pushes **`v{version}`**, then **dispatches** [`.github/workflows/release.yml`](.github/workflows/release.yml) so a **Release** run always starts (GitHub often does not run workflows from a tag `push` alone, even with a PAT).
-3. **Release** compiles, typechecks, lints, packages, creates/updates the **GitHub Release** with the VSIX, then **Marketplace** publish when **`VSCE_PAT`** is set.
+**You do not put the next extension version in your feature PR.** The **current** extension SemVer always lives in **`package.json` `version` on `master`** (whatever was last released / last bumped). Your PR changes product code only; **GitHub labels on that PR** tell automation **how** to increment that existing number **after** the PR merges.
 
-If you merge **without** changing `version`, **no tag** is created and **no new release** runs (by design).
+1. **Labels exist on the repo** so they show in the PR label picker: [`.github/workflows/sync-semver-labels.yml`](.github/workflows/sync-semver-labels.yml) runs on every **`push` to `master`** and on **Actions → Sync SemVer labels → Run workflow**. It creates/updates:
+   - **`semver:patch`** — after merge → `npm version patch` (e.g. `0.9.6` → `0.9.7`) from **current** `package.json` on `master`
+   - **`semver:minor`** — after merge → `npm version minor` (e.g. `0.9.6` → `0.10.0`)
+   - **`semver:major`** — after merge → `npm version major` (e.g. `0.9.6` → `1.0.0`)
+   - **`skip-semver`** — merge **without** bumping `package.json` or shipping a new release
+2. Open a PR targeting **`master`**. Add **exactly one** of **`semver:patch` \| `semver:minor` \| `semver:major`**, **or** **`skip-semver`** alone (never combine `skip-semver` with `semver:*`).
+3. **[SemVer label (PR to master)](.github/workflows/semver-label-required.yml)** reads **only the labels on the PR** (not file contents) and must pass before merge if you mark it required in branch protection.
+4. **Merge** the PR. **[Version bump on PR merge](.github/workflows/version-bump-on-pr-merge.yml)** runs on the merge event, reads **`package.json` `version` on the merge commit** (same as the extension version already on `master` unless you intentionally edited `version` in the PR), applies the **patch \| minor \| major** bump you chose, prepends **[CHANGELOG.md](CHANGELOG.md)**, and **pushes one commit** to `master` (skipped for **`skip-semver`**, or if the merge commit already changed `package.json` `version` vs its first parent — that path is for rare manual hotfixes).
+5. That push runs [`.github/workflows/auto-tag-on-master.yml`](.github/workflows/auto-tag-on-master.yml), which tags **`v{version}`** and **dispatches** [`.github/workflows/release.yml`](.github/workflows/release.yml).
+6. **Release** builds the VSIX, updates the **GitHub Release**, and runs **`vsce publish`** when **`VSCE_PAT`** is set.
 
-**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** so Actions can push tags and **dispatch** workflows with `GITHUB_TOKEN` when **`TAG_PUSH_TOKEN`** is not set.
+**Optional (local CLI):** you can still run `gh label create …` if you prefer; the sync workflow makes that unnecessary.
 
-**`TAG_PUSH_TOKEN` (recommended):** a **classic PAT** with **`repo`** scope, or a **fine-grained PAT** on this repo with **Contents: Read and write** and **Actions: Read and write** (the latter is required so `gh workflow run` can start **Release**). Auto-tag uses this token for the tag `git push` and as **`GH_TOKEN`** for dispatch. If the secret is absent, the tag is still pushed with `GITHUB_TOKEN`; dispatch then uses `GITHUB_TOKEN` and needs the workflow permission above. If dispatch fails, use **Actions → Release → Run workflow** with the new tag.
+**Repository settings:** **Settings → Actions → General → Workflow permissions** → **Read and write** so Actions can push the bump commit, tags, and dispatch **Release** when using `GITHUB_TOKEN`.
+
+**`TAG_PUSH_TOKEN` (recommended):** classic PAT with **`repo`**, or a fine-grained PAT with **Contents: Read and write** and **Actions: Read and write**. Used for tag `git push`, `gh workflow run Release`, and (in the version-bump workflow) pushing the bump commit if `GITHUB_TOKEN` is blocked by branch protection.
 
 ### Manual release for an existing tag
 
@@ -95,11 +104,11 @@ You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the 
 
 Add **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope) if you want **`vsce publish`**. Without it, the **GitHub Release** is still created.
 
-**If older tags never created a Release**, use **Run workflow** on **Release** for that tag, or bump `version` on `master` again after merge (with **`TAG_PUSH_TOKEN`** and **Actions** scopes as above).
+**If older tags never created a Release**, use **Run workflow** on **Release** for that tag, or merge another PR with the appropriate **`semver:*`** label so automation runs again.
 
 ## Versioning
 
-Versions follow **SemVer** (`MAJOR.MINOR.PATCH`). Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Git branches for work items use the pattern **`COMMITDOCK-XXXX`** (one branch, one commit before merge to **`master`**, amended if iterating on the same branch).
+Versions follow **SemVer** (`MAJOR.MINOR.PATCH`). **Releases:** add **`semver:patch`**, **`semver:minor`**, or **`semver:major`** on PRs to **`master`** (or **`skip-semver`** when no release should ship); [CHANGELOG.md](CHANGELOG.md) gets an auto-prepended section for each release. Git branches for work items use **`COMMITDOCK-XXXX`** (one branch, one commit before merge to **`master`**, amended if iterating on the same branch).
 
 ## Repository
 
