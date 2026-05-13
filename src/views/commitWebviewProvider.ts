@@ -15,8 +15,14 @@ import {
   pathsToUnstage,
   pickPrimaryRepository,
 } from '../git/snapshot';
-import { PROTOCOL_VERSION, parseWebviewMessage, type HostToWebviewMessage } from '../protocol';
+import {
+  PROTOCOL_VERSION,
+  parseWebviewMessage,
+  type HostToWebviewMessage,
+  type StashSnapshotEntry,
+} from '../protocol';
 import { ForcePushMode, type API, type Repository } from '../git/git-api';
+import { listGitStashes } from '../git/stash-list';
 
 export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'commitDock.commitView';
@@ -121,6 +127,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           if (msg.type === 'push') {
             this._postPushResult(false, 'No Git repository is active.');
           }
+          if (msg.type === 'requestStashList') {
+            this._postStashListMessage({ ok: true, entries: [] });
+            return;
+          }
+          if (msg.type === 'stashApply' || msg.type === 'stashPop' || msg.type === 'stashDrop') {
+            this._postStashResult(false, 'No Git repository is active.');
+            return;
+          }
           return;
         }
 
@@ -201,6 +215,26 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
         if (msg.type === 'push') {
           await this._gitPush(repo, msg.payload.forceWithLease === true);
+          return;
+        }
+
+        if (msg.type === 'requestStashList') {
+          void this._refreshStashList(repo);
+          return;
+        }
+
+        if (msg.type === 'stashApply') {
+          void this._stashApply(repo, msg.payload.index);
+          return;
+        }
+
+        if (msg.type === 'stashPop') {
+          void this._stashPop(repo, msg.payload.index);
+          return;
+        }
+
+        if (msg.type === 'stashDrop') {
+          void this._stashDrop(repo, msg.payload.index);
           return;
         }
       }),
@@ -301,6 +335,123 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   private _showGitError(operation: string, err: unknown): void {
     const detail = err instanceof Error ? err.message : String(err);
     void vscode.window.showErrorMessage(`Commit Dock: ${operation} failed — ${detail}`);
+  }
+
+  private _stashErrorDetail(err: unknown): string {
+    const e = err as { gitErrorCode?: string };
+    const code = typeof e?.gitErrorCode === 'string' ? e.gitErrorCode : '';
+    const msg = err instanceof Error ? err.message : String(err);
+    if (code === 'StashConflict' || /conflict/i.test(msg)) {
+      return `Stash conflict: resolve files in the Conflicted group, then commit or stash. ${msg}`;
+    }
+    if (code === 'UnmergedChanges') {
+      return `Unmerged changes present: resolve conflicts before applying or popping a stash. ${msg}`;
+    }
+    if (code === 'LocalChangesOverwritten') {
+      return `Local changes would be overwritten: commit or stash your work, then retry. ${msg}`;
+    }
+    return msg;
+  }
+
+  private _postStashListMessage(payload: {
+    ok: boolean;
+    entries: StashSnapshotEntry[];
+    detail?: string;
+  }): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'stashList',
+      payload,
+    };
+    void view.webview.postMessage(msg);
+  }
+
+  private _postStashResult(ok: boolean, detail?: string): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'stashResult',
+      payload: { ok, detail },
+    };
+    void view.webview.postMessage(msg);
+  }
+
+  private async _refreshStashList(repo: Repository): Promise<void> {
+    try {
+      const entries = await listGitStashes(repo.rootUri.fsPath);
+      this._postStashListMessage({ ok: true, entries });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      this._postStashListMessage({ ok: false, entries: [], detail });
+    }
+  }
+
+  private async _stashApply(repo: Repository, index: number): Promise<void> {
+    try {
+      await repo.applyStash(index);
+    } catch (err) {
+      this._showGitError('Apply stash', err);
+      this._postStashResult(false, this._stashErrorDetail(err));
+      this._postSnapshotImmediate(repo);
+      return;
+    }
+    this._postStashResult(true);
+    this._postSnapshotImmediate(repo);
+  }
+
+  private async _stashPop(repo: Repository, index: number): Promise<void> {
+    const confirm = await vscode.window.showWarningMessage(
+      `Pop stash@{${index}}?`,
+      {
+        modal: true,
+        detail: 'Removes this stash entry when the pop succeeds. If Git reports conflicts, resolve them in the Conflicted group.',
+      },
+      'Pop stash',
+    );
+    if (confirm !== 'Pop stash') {
+      this._postStashResult(false, 'Cancelled.');
+      return;
+    }
+    try {
+      await repo.popStash(index);
+    } catch (err) {
+      this._showGitError('Pop stash', err);
+      this._postStashResult(false, this._stashErrorDetail(err));
+      this._postSnapshotImmediate(repo);
+      return;
+    }
+    this._postStashResult(true);
+    this._postSnapshotImmediate(repo);
+  }
+
+  private async _stashDrop(repo: Repository, index: number): Promise<void> {
+    const confirm = await vscode.window.showWarningMessage(
+      `Drop stash@{${index}}?`,
+      { modal: true, detail: 'This permanently deletes that stash entry from Git.' },
+      'Drop stash',
+    );
+    if (confirm !== 'Drop stash') {
+      this._postStashResult(false, 'Cancelled.');
+      return;
+    }
+    try {
+      await repo.dropStash(index);
+    } catch (err) {
+      this._showGitError('Drop stash', err);
+      this._postStashResult(false, err instanceof Error ? err.message : String(err));
+      this._postSnapshotImmediate(repo);
+      return;
+    }
+    this._postStashResult(true);
+    void vscode.window.showInformationMessage('Commit Dock: stash dropped.');
+    this._postSnapshotImmediate(repo);
   }
 
   private async _stageSelected(repo: Repository, set: Set<string>): Promise<void> {
@@ -637,6 +788,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         payload: empty,
       };
       void view.webview.postMessage(snap);
+      this._postStashListMessage({ ok: true, entries: [] });
       return;
     }
 
@@ -654,6 +806,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         payload: empty,
       };
       void view.webview.postMessage(snap);
+      this._postStashListMessage({ ok: true, entries: [] });
       return;
     }
 
@@ -713,6 +866,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       payload,
     };
     void view.webview.postMessage(msg);
+    void this._refreshStashList(repo);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, nonce: string): string {
@@ -767,6 +921,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           <button type="button" id="commit-push-fwl" class="selection-toolbar__btn selection-toolbar__btn--danger">Push (force-with-lease)</button>
         </div>
         <p id="commit-hint" class="hint commit-panel__hint" hidden></p>
+      </section>
+      <section id="stash-panel" class="stash-panel" hidden>
+        <div class="stash-panel__header">
+          <h2 class="stash-panel__title">Stashes</h2>
+          <button type="button" id="stash-refresh" class="selection-toolbar__btn" title="Refresh stash list">Refresh</button>
+        </div>
+        <p id="stash-hint" class="hint stash-panel__hint" hidden></p>
+        <ul id="stash-list" class="stash-list"></ul>
       </section>
       <section id="changes" class="changes" hidden tabindex="-1"></section>
     </main>

@@ -13,8 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.8.0] - 2026-05-13
+
+### Added
+
+- **Phase 7 — Stashes:** **Stashes** panel with **Refresh**, per-entry **Apply**, **Pop**, and **Drop** (Pop/Drop use **modal confirmations**). List comes from `git stash list` in the active repo; actions use **`vscode.git`** `applyStash`, `popStash`, and `dropStash`. **Protocol v8:** `stashList`, `stashResult`, `requestStashList`, `stashApply`, `stashPop`, `stashDrop`. Conflicts surface via **`stashResult`** / **`stash-hint`** plus **`gitErrorCode`**-aware messages (e.g. `StashConflict`, `UnmergedChanges`).
 
 ## [0.7.0] - 2026-05-13
 
@@ -91,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...v0.5.0
