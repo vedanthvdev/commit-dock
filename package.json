@@ -47,7 +47,8 @@
     "onCommand:commitDock.stashWithMessage",
     "onCommand:commitDock.showRecentCommits",
     "onCommand:commitDock.pullFastForwardOnly",
-    "onCommand:commitDock.fetchAndRefresh"
+    "onCommand:commitDock.fetchAndRefresh",
+    "onCommand:commitDock.compareWorkingTreeWithRef"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -136,6 +137,11 @@
       {
         "command": "commitDock.fetchAndRefresh",
         "title": "Fetch Remotes and Refresh Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.compareWorkingTreeWithRef",
+        "title": "Compare Working Tree with Ref (name-status)…",
         "category": "Commit Dock"
       },
       {

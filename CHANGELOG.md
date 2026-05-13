@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **History:** palette **Show Recent Commits (Output)** prints the last 40 `git log --oneline --decorate` lines for the primary repository into a dedicated output channel (read-only, Commit Dock scoped).
 - **Remote sync:** palette **Pull (Fast-Forward Only)** runs `git pull --ff-only` when the working tree is clean, surfacing combined stdout/stderr in a short toast.
 - **Remote sync:** palette **Fetch Remotes and Refresh Commit View** runs `git fetch --all --prune` for the primary repository, then triggers **Refresh Commit View** on success.
+- **Compare:** palette **Compare Working Tree with Ref (name-status)…** prints `git diff --name-status <ref>...HEAD` to a **Commit Dock: Compare** output channel (read-only, bounded output).
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
