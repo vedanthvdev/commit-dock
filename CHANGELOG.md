@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- GitHub **default branch** is now **`master`** (was `main`). CI runs on pushes and PRs targeting `master`.
+
 ### Planned
 
 - Phase 2: Selection + select all.

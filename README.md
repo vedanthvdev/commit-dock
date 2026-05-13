@@ -11,20 +11,22 @@
 
 ## Development
 
+The default Git branch for this repository is **`master`**.
+
 ```bash
+git checkout master
 npm install
 npm run compile   # or npm run watch
+npm run package   # produces .vsce / vsce package
 ```
 
 Press **F5** in VS Code to launch the **Extension Development Host**. Open the **Commit Dock** icon in the activity bar.
 
-```bash
-npm run package   # produces .vsce / vsce package
-```
+CI runs on **pushes to `master`** and on **pull requests targeting `master`**.
 
 ## Versioning
 
-Versions follow **SemVer** (`MAJOR.MINOR.PATCH`). Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Git branches for work items use the pattern **`COMMITDOCK-XXXX`** (one branch, one commit before merge to `main`, amended if iterating on the same branch).
+Versions follow **SemVer** (`MAJOR.MINOR.PATCH`). Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Git branches for work items use the pattern **`COMMITDOCK-XXXX`** (one branch, one commit before merge to **`master`**, amended if iterating on the same branch).
 
 ## Repository
 
