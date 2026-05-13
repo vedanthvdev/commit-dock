@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **History:** palette **Show Recent Commit Graph (Output)** prints a bounded `git log --graph --oneline --decorate` view into **Commit Dock: Graph** (ASCII graph, read-only).
 - **Remote sync:** palette **Pull (Fast-Forward Only)** runs `git pull --ff-only` when the working tree is clean, surfacing combined stdout/stderr in a short toast.
 - **Remote sync:** palette **Fetch Remotes and Refresh Commit View** runs `git fetch --all --prune` for the primary repository, then triggers **Refresh Commit View** on success.
+- **Remote sync:** palette **Show Git Remotes (Output)** prints `git remote -v` into **Commit Dock: Remotes** (read-only, bounded output).
 - **Status:** palette **Show Short Git Status (Output)** prints `git status -sb --untracked-files=all` into **Commit Dock: Status** (read-only, bounded output).
 - **Diff:** palette **Show Working Tree Diff Stat (Output)** prints `git diff --stat HEAD` into **Commit Dock: Diff stat** (read-only, bounded output).
 - **Compare:** palette **Compare Working Tree with Ref (name-status)…** prints `git diff --name-status <ref>...HEAD` to a **Commit Dock: Compare** output channel (read-only, bounded output).
