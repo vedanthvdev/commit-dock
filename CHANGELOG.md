@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.5] - 2026-05-13
+
+### Fixed
+
+- **Marketplace / Release:** use a **128×128 PNG** for `package.json` `icon` (`media/commit-dock-128.png`). `vsce package` rejects SVG icons, which blocked the **Release** workflow from producing a VSIX.
+
 ## [0.9.4] - 2026-05-13
 
 ### Fixed
