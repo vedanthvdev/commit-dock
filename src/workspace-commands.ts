@@ -20,6 +20,10 @@ export function registerWorkspaceCommands(context: vscode.ExtensionContext): voi
       void vscode.window.showInformationMessage(`Commit Dock: copied ${text}`);
     }),
 
+    vscode.commands.registerCommand('commitDock.openExtensionSettings', async () => {
+      await vscode.commands.executeCommand('workbench.action.openExtensionSettings', context.extension.id);
+    }),
+
     vscode.commands.registerCommand('commitDock.openTerminalAtPrimaryRepo', async () => {
       const api = await getGitApi({ silent: true });
       const repo = api ? pickPrimaryRepository(api) : undefined;
