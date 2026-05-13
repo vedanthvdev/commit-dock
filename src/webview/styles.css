@@ -102,6 +102,68 @@ body {
   margin-top: 3px;
 }
 
+.stash-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, rgba(128, 128, 128, 0.25));
+}
+
+.stash-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stash-panel__title {
+  margin: 0;
+  font-size: calc(var(--vscode-font-size) * 0.95);
+  font-weight: 600;
+}
+
+.stash-panel__hint {
+  color: var(--vscode-errorForeground);
+}
+
+.stash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stash-list__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  line-height: 1.35;
+}
+
+.stash-list__desc {
+  flex: 1 1 160px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.stash-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.stash-list__empty {
+  opacity: 0.75;
+  font-style: italic;
+}
+
 .selection-toolbar {
   display: flex;
   gap: 8px;

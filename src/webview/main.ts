@@ -1,4 +1,4 @@
-import { PROTOCOL_VERSION, type HostToWebviewMessage, type RepoSnapshot } from '../protocol';
+import { PROTOCOL_VERSION, type HostToWebviewMessage, type RepoSnapshot, type StashSnapshotEntry } from '../protocol';
 import './styles.css';
 
 declare global {
@@ -29,6 +29,7 @@ function main(): void {
   let lastSnapshot: RepoSnapshot | undefined;
   let committing = false;
   let pushing = false;
+  let stashBusy = false;
 
   const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
   const commitBtn = document.getElementById('commit-submit') as HTMLButtonElement | null;
@@ -42,24 +43,41 @@ function main(): void {
     if (panel) {
       panel.hidden = !lastGitOk;
     }
-    if (!textarea || !commitBtn) {
-      return;
+    if (textarea && commitBtn) {
+      const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
+      const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
+      const hasRepo = !!root;
+      const blocked = conflictCount > 0;
+      const busy = committing || pushing || stashBusy;
+      commitBtn.disabled = busy || !hasRepo || blocked;
+      textarea.disabled = !lastGitOk || !hasRepo;
+      if (amendCb) {
+        amendCb.disabled = !lastGitOk || !hasRepo;
+      }
+      if (pushBtn) {
+        pushBtn.disabled = busy || !hasRepo || blocked;
+      }
+      if (pushFwlBtn) {
+        pushFwlBtn.disabled = busy || !hasRepo || blocked;
+      }
     }
+    updateStashPanelState();
+  }
+
+  function updateStashPanelState(): void {
+    const panel = document.getElementById('stash-panel');
+    const refresh = document.getElementById('stash-refresh') as HTMLButtonElement | null;
     const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
-    const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
     const hasRepo = !!root;
-    const blocked = conflictCount > 0;
-    const busy = committing || pushing;
-    commitBtn.disabled = busy || !hasRepo || blocked;
-    textarea.disabled = !lastGitOk || !hasRepo;
-    if (amendCb) {
-      amendCb.disabled = !lastGitOk || !hasRepo;
+    if (panel) {
+      panel.hidden = !(lastGitOk && hasRepo);
     }
-    if (pushBtn) {
-      pushBtn.disabled = busy || !hasRepo || blocked;
+    const busy = stashBusy || committing || pushing;
+    if (refresh) {
+      refresh.disabled = busy || !hasRepo || !lastGitOk;
     }
-    if (pushFwlBtn) {
-      pushFwlBtn.disabled = busy || !hasRepo || blocked;
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.stash-list__action')) {
+      btn.disabled = busy;
     }
   }
 
@@ -84,7 +102,7 @@ function main(): void {
   }
 
   function submitCommit(): void {
-    if (!textarea || !commitBtn || commitBtn.disabled || committing || pushing) {
+    if (!textarea || !commitBtn || commitBtn.disabled || committing || pushing || stashBusy) {
       return;
     }
     const amend = amendCb?.checked ?? false;
@@ -139,7 +157,7 @@ function main(): void {
     }
     if (pushBtn && pushFwlBtn) {
       pushBtn.addEventListener('click', () => {
-        if (pushing || committing) {
+        if (pushing || committing || stashBusy) {
           return;
         }
         pushing = true;
@@ -147,7 +165,7 @@ function main(): void {
         vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'push', payload: {} });
       });
       pushFwlBtn.addEventListener('click', () => {
-        if (pushing || committing) {
+        if (pushing || committing || stashBusy) {
           return;
         }
         pushing = true;
@@ -160,6 +178,97 @@ function main(): void {
       });
     }
   }
+
+  function renderStashRows(entries: readonly StashSnapshotEntry[]): void {
+    const ul = document.getElementById('stash-list');
+    if (!ul) {
+      return;
+    }
+    ul.replaceChildren();
+    if (entries.length === 0) {
+      const li = document.createElement('li');
+      li.className = 'stash-list__empty';
+      li.textContent = 'No stashes';
+      ul.appendChild(li);
+      return;
+    }
+    for (const e of entries) {
+      const li = document.createElement('li');
+      li.className = 'stash-list__row';
+
+      const desc = document.createElement('span');
+      desc.className = 'stash-list__desc';
+      desc.textContent = `stash@{${e.index}}: ${e.description}`;
+
+      const actions = document.createElement('span');
+      actions.className = 'stash-list__actions';
+
+      const mk = (label: string, action: string): HTMLButtonElement => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'selection-toolbar__btn stash-list__action';
+        b.textContent = label;
+        b.dataset.stashAction = action;
+        b.dataset.stashIndex = String(e.index);
+        return b;
+      };
+
+      actions.append(mk('Apply', 'apply'), mk('Pop', 'pop'), mk('Drop', 'drop'));
+      li.append(desc, actions);
+      ul.appendChild(li);
+    }
+  }
+
+  function wireStashListClicks(
+    vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
+  ): void {
+    const ul = document.getElementById('stash-list');
+    if (!ul) {
+      return;
+    }
+    ul.addEventListener('click', (ev: MouseEvent) => {
+      const target = ev.target as HTMLElement | null;
+      const btn = target?.closest?.('button[data-stash-action]') as HTMLButtonElement | null;
+      if (!btn || stashBusy || committing || pushing) {
+        return;
+      }
+      const action = btn.dataset.stashAction;
+      const indexStr = btn.dataset.stashIndex;
+      if (!action || indexStr === undefined) {
+        return;
+      }
+      const index = Number(indexStr);
+      if (!Number.isInteger(index) || index < 0) {
+        return;
+      }
+      stashBusy = true;
+      updateCommitPanelState();
+      if (action === 'apply') {
+        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stashApply', payload: { index } });
+      } else if (action === 'pop') {
+        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stashPop', payload: { index } });
+      } else if (action === 'drop') {
+        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stashDrop', payload: { index } });
+      } else {
+        stashBusy = false;
+        updateCommitPanelState();
+      }
+    });
+  }
+
+  wireStashListClicks(vscodeApi);
+
+  const stashRefresh = document.getElementById('stash-refresh') as HTMLButtonElement | null;
+  if (stashRefresh) {
+    stashRefresh.addEventListener('click', () => {
+      if (stashBusy || committing || pushing) {
+        return;
+      }
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestStashList' });
+    });
+  }
+
+  const stashHint = document.getElementById('stash-hint') as HTMLParagraphElement | null;
 
   updateCommitPanelState();
 
@@ -227,6 +336,32 @@ function main(): void {
       } else if (msg.payload.ok && commitHint) {
         commitHint.hidden = true;
         commitHint.textContent = '';
+      }
+      updateCommitPanelState();
+    }
+    if (msg.type === 'stashList') {
+      renderStashRows(msg.payload.entries);
+      if (stashHint) {
+        if (!msg.payload.ok) {
+          stashHint.hidden = false;
+          stashHint.textContent = msg.payload.detail ?? 'Could not list stashes.';
+        } else {
+          stashHint.hidden = true;
+          stashHint.textContent = '';
+        }
+      }
+      updateCommitPanelState();
+    }
+    if (msg.type === 'stashResult') {
+      stashBusy = false;
+      if (stashHint) {
+        if (!msg.payload.ok && msg.payload.detail) {
+          stashHint.hidden = false;
+          stashHint.textContent = msg.payload.detail;
+        } else if (msg.payload.ok) {
+          stashHint.hidden = true;
+          stashHint.textContent = '';
+        }
       }
       updateCommitPanelState();
     }

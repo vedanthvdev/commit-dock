@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -32,6 +32,12 @@ export interface RepoSnapshot {
   updatedAt: number;
 }
 
+/** Stash row for the webview stash panel (from `git stash list`). */
+export interface StashSnapshotEntry {
+  index: number;
+  description: string;
+}
+
 export type HostToWebviewMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'hello'; payload: { message: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'gitStatus'; payload: { ok: boolean; detail?: string } }
@@ -42,7 +48,13 @@ export type HostToWebviewMessage =
       type: 'headCommitMessage';
       payload: { ok: boolean; message?: string; detail?: string };
     }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'pushResult'; payload: { ok: boolean; detail?: string } };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'pushResult'; payload: { ok: boolean; detail?: string } }
+  | {
+      protocolVersion: typeof PROTOCOL_VERSION;
+      type: 'stashList';
+      payload: { ok: boolean; entries: StashSnapshotEntry[]; detail?: string };
+    }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stashResult'; payload: { ok: boolean; detail?: string } };
 
 export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'ready' }
@@ -56,7 +68,11 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string; amend?: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'push'; payload: { forceWithLease?: boolean } };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'push'; payload: { forceWithLease?: boolean } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestStashList' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stashApply'; payload: { index: number } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stashPop'; payload: { index: number } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stashDrop'; payload: { index: number } };
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
@@ -86,6 +102,22 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
 
   if (msg.type === 'requestHeadCommitMessage') {
     return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'requestStashList') {
+    return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'stashApply' || msg.type === 'stashPop' || msg.type === 'stashDrop') {
+    const payload = (msg as { payload?: unknown }).payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+    const index = (payload as { index?: unknown }).index;
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+      return undefined;
+    }
+    return { protocolVersion: PROTOCOL_VERSION, type: msg.type, payload: { index } };
   }
 
   if (msg.type === 'push') {
