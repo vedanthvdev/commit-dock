@@ -2,7 +2,7 @@
 
 **Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
 
-> **Status:** current release is **`v0.9.3`** (auto-tag on `master` when `package.json` version changes). See [CHANGELOG.md](CHANGELOG.md).
+> **Status:** see [GitHub Releases](https://github.com/vedanthvdev/commit-dock/releases) for the current VSIX. [CHANGELOG.md](CHANGELOG.md) tracks changes.
 
 ## Requirements
 
@@ -72,30 +72,30 @@ Releases are **SemVer tags** `vX.Y.Z` that match **`package.json` `version`**.
 ### Automatic (recommended)
 
 1. On a PR to **`master`**, bump **`package.json` `version`** and update **`CHANGELOG.md`** (and anything else for that release).
-2. **Merge** the PR. If the version string **changed** compared to the previous commit on `master`, [`.github/workflows/auto-tag-on-master.yml`](.github/workflows/auto-tag-on-master.yml) creates and pushes **`v{version}`** on the merge commit.
-3. That **tag push** runs [`.github/workflows/release.yml`](.github/workflows/release.yml): compile, typecheck, lint, package, **GitHub Release** with the VSIX, then **Marketplace** publish when **`VSCE_PAT`** is set.
+2. **Merge** the PR. If the version string **changed** compared to the previous commit on `master`, [`.github/workflows/auto-tag-on-master.yml`](.github/workflows/auto-tag-on-master.yml) creates and pushes **`v{version}`**, then **dispatches** [`.github/workflows/release.yml`](.github/workflows/release.yml) so a **Release** run always starts (GitHub often does not run workflows from a tag `push` alone, even with a PAT).
+3. **Release** compiles, typechecks, lints, packages, creates/updates the **GitHub Release** with the VSIX, then **Marketplace** publish when **`VSCE_PAT`** is set.
 
 If you merge **without** changing `version`, **no tag** is created and **no new release** runs (by design).
 
-**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** so Actions can push tags.
+**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** so Actions can push tags and **dispatch** workflows with `GITHUB_TOKEN` when **`TAG_PUSH_TOKEN`** is not set.
 
-**Why releases sometimes did not appear:** GitHub **does not trigger other workflows** when a tag is pushed using the default **`GITHUB_TOKEN`** (so `release.yml` never ran after auto-tag). Fix by adding a repository secret **`TAG_PUSH_TOKEN`**: a **classic PAT** with **`repo`** scope (or a fine-grained PAT with **Contents: Read and write** on this repo). Auto-tag uses it for `git push` so the **Release** workflow runs. If the secret is absent, you still get the tag on the remote; run **Actions → Release → Run workflow** and enter the tag (e.g. `v0.9.3`) to build the VSIX and create the GitHub Release.
+**`TAG_PUSH_TOKEN` (recommended):** a **classic PAT** with **`repo`** scope, or a **fine-grained PAT** on this repo with **Contents: Read and write** and **Actions: Read and write** (the latter is required so `gh workflow run` can start **Release**). Auto-tag uses this token for the tag `git push` and as **`GH_TOKEN`** for dispatch. If the secret is absent, the tag is still pushed with `GITHUB_TOKEN`; dispatch then uses `GITHUB_TOKEN` and needs the workflow permission above. If dispatch fails, use **Actions → Release → Run workflow** with the new tag.
 
 ### Manual release for an existing tag
 
 1. Open **Actions** → **Release** → **Run workflow**.
-2. Enter the tag (e.g. **`v0.9.3`**) that already exists on GitHub.
+2. Enter the tag (e.g. **`v0.9.5`**) that already exists on GitHub.
 3. The workflow checks out that tag, builds the VSIX, and creates or updates the release.
 
 ### Manual tag (optional)
 
-You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master` (a normal user push **does** trigger `release.yml`).
+You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master`. That **tag push** may start **Release** on its own; if it does not, run **Release** manually for that tag.
 
 ### Marketplace secret
 
 Add **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope) if you want **`vsce publish`**. Without it, the **GitHub Release** is still created.
 
-**If older tags never created a Release**, use **Run workflow** on **Release** for that tag after merging this fix, or bump `version` again on `master` (with `TAG_PUSH_TOKEN` set so automation chains correctly).
+**If older tags never created a Release**, use **Run workflow** on **Release** for that tag, or bump `version` on `master` again after merge (with **`TAG_PUSH_TOKEN`** and **Actions** scopes as above).
 
 ## Versioning
 
