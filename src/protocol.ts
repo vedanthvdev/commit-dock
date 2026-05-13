@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 8;
+export const PROTOCOL_VERSION = 10;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -18,6 +18,13 @@ export interface SnapshotFile {
   selected: boolean;
 }
 
+export interface AmendHeadFileEntry {
+  /** Absolute path in the repository. */
+  path: string;
+  /** Path relative to workspace folders when possible. */
+  relPath: string;
+}
+
 export interface RepoSnapshot {
   rootPath: string;
   /** Short label for the repository (often a folder name). */
@@ -30,6 +37,8 @@ export interface RepoSnapshot {
   /** Absolute paths the user has explicitly unchecked (all others are treated as selected). */
   deselectedPaths: string[];
   updatedAt: number;
+  /** Files touched by `HEAD` (amend context; mirrors IntelliJ’s “included in last commit” list). */
+  amendHeadFiles?: readonly AmendHeadFileEntry[];
 }
 
 /** Stash row for the webview stash panel (from `git stash list`). */
@@ -66,7 +75,11 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'unstageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'refreshView' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'quickStash' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'openDiff'; payload: { path: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string; amend?: boolean } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitAndPush'; payload: { message: string; amend?: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'push'; payload: { forceWithLease?: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestStashList' }
@@ -106,6 +119,22 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
     return msg as WebviewToHostMessage;
   }
 
+  if (msg.type === 'refreshView' || msg.type === 'quickStash') {
+    return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'openDiff') {
+    const payload = (msg as { payload?: unknown }).payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+    const pathStr = (payload as { path?: unknown }).path;
+    if (typeof pathStr !== 'string' || pathStr.length === 0 || pathStr.length > MAX_PATH_CHARS || pathStr.includes('\0')) {
+      return undefined;
+    }
+    return { protocolVersion: PROTOCOL_VERSION, type: 'openDiff', payload: { path: pathStr } };
+  }
+
   if (msg.type === 'requestHeadCommitMessage') {
     return msg as WebviewToHostMessage;
   }
@@ -135,7 +164,7 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
     return { protocolVersion: PROTOCOL_VERSION, type: 'push', payload: { forceWithLease } };
   }
 
-  if (msg.type === 'commit') {
+  if (msg.type === 'commit' || msg.type === 'commitAndPush') {
     const payload = (msg as { payload?: unknown }).payload;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return undefined;
@@ -151,7 +180,7 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
     }
     return {
       protocolVersion: PROTOCOL_VERSION,
-      type: 'commit',
+      type: msg.type,
       payload: { message: rawMessage, amend },
     };
   }

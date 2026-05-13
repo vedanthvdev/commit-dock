@@ -30,6 +30,38 @@ export function pickPrimaryRepository(api: API): Repository | undefined {
   return api.repositories[0];
 }
 
+/** VS Code sometimes reports `Status.UNTRACKED` under `workingTreeChanges`; IntelliJ shows those as unversioned. */
+function isUntrackedWorkingTreeChange(c: Change): boolean {
+  return c.status === Status.UNTRACKED;
+}
+
+function unstagedWorkingTreeChanges(repo: Repository): Change[] {
+  return repo.state.workingTreeChanges.filter((c) => !isUntrackedWorkingTreeChange(c));
+}
+
+function mergedUntrackedChanges(repo: Repository): Change[] {
+  const byPath = new Map<string, Change>();
+  for (const c of repo.state.untrackedChanges) {
+    byPath.set(c.uri.fsPath, c);
+  }
+  for (const c of repo.state.workingTreeChanges) {
+    if (isUntrackedWorkingTreeChange(c)) {
+      byPath.set(c.uri.fsPath, c);
+    }
+  }
+  return [...byPath.values()];
+}
+
+/** Paths Git treats as untracked / unversioned (matches IntelliJ’s split better than raw `untrackedChanges` alone). */
+export function untrackedPathSet(repo: Repository): Set<string> {
+  return new Set(mergedUntrackedChanges(repo).map((c) => c.uri.fsPath));
+}
+
+/** Working-tree paths that are staged changes vs untracked/unversioned. */
+export function unstagedWorkingPathSet(repo: Repository): Set<string> {
+  return new Set(unstagedWorkingTreeChanges(repo).map((c) => c.uri.fsPath));
+}
+
 export function getSelectablePathsForGroup(repo: Repository, group: SnapshotGroupId): string[] {
   switch (group) {
     case 'conflicted':
@@ -37,9 +69,9 @@ export function getSelectablePathsForGroup(repo: Repository, group: SnapshotGrou
     case 'staged':
       return repo.state.indexChanges.map((c) => c.uri.fsPath);
     case 'unstaged':
-      return repo.state.workingTreeChanges.map((c) => c.uri.fsPath);
+      return unstagedWorkingTreeChanges(repo).map((c) => c.uri.fsPath);
     case 'untracked':
-      return repo.state.untrackedChanges.map((c) => c.uri.fsPath);
+      return mergedUntrackedChanges(repo).map((c) => c.uri.fsPath);
     default:
       return [];
   }
@@ -60,8 +92,8 @@ export function getSelectedSelectablePaths(repo: Repository, deselected: Readonl
 
 /** Selected paths that can be staged (working tree or untracked). */
 export function pathsToStage(repo: Repository, selectedPaths: readonly string[]): string[] {
-  const unstaged = new Set(repo.state.workingTreeChanges.map((c) => c.uri.fsPath));
-  const untracked = new Set(repo.state.untrackedChanges.map((c) => c.uri.fsPath));
+  const unstaged = unstagedWorkingPathSet(repo);
+  const untracked = untrackedPathSet(repo);
   const out: string[] = [];
   const seen = new Set<string>();
   for (const p of selectedPaths) {
@@ -104,8 +136,8 @@ export type DiscardPartition = { clean: string[]; restore: string[] };
 
 /** Selected paths that can be discarded from working tree / untracked (never staged-only). */
 export function pathsToDiscard(repo: Repository, selectedPaths: readonly string[]): DiscardPartition {
-  const untracked = new Set(repo.state.untrackedChanges.map((c) => c.uri.fsPath));
-  const working = new Set(repo.state.workingTreeChanges.map((c) => c.uri.fsPath));
+  const untracked = untrackedPathSet(repo);
+  const working = unstagedWorkingPathSet(repo);
   const clean: string[] = [];
   const restore: string[] = [];
   const seenClean = new Set<string>();
@@ -143,7 +175,7 @@ function statusLabel(status: Status): string {
     case Status.DELETED:
       return 'Deleted';
     case Status.UNTRACKED:
-      return 'Untracked';
+      return 'Unversioned';
     case Status.IGNORED:
       return 'Ignored';
     case Status.INTENT_TO_ADD:
@@ -222,10 +254,10 @@ export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<stri
     toFile(rootPath, 'conflicted', c, deselected),
   );
   const staged: SnapshotFile[] = repo.state.indexChanges.map((c) => toFile(rootPath, 'staged', c, deselected));
-  const unstaged: SnapshotFile[] = repo.state.workingTreeChanges.map((c) =>
+  const unstaged: SnapshotFile[] = unstagedWorkingTreeChanges(repo).map((c) =>
     toFile(rootPath, 'unstaged', c, deselected),
   );
-  const untracked: SnapshotFile[] = repo.state.untrackedChanges.map((c) =>
+  const untracked: SnapshotFile[] = mergedUntrackedChanges(repo).map((c) =>
     toFile(rootPath, 'untracked', c, deselected),
   );
 
@@ -244,8 +276,8 @@ export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<stri
     groups: [
       { id: 'conflicted', title: 'Merge conflicts', files: conflicted },
       { id: 'staged', title: 'Staged', files: staged },
-      { id: 'unstaged', title: 'Changes', files: unstaged },
-      { id: 'untracked', title: 'Untracked', files: untracked },
+      { id: 'unstaged', title: 'Unstaged', files: unstaged },
+      { id: 'untracked', title: 'Unversioned files', files: untracked },
     ],
     deselectedPaths,
     updatedAt: Date.now(),
@@ -261,8 +293,8 @@ export function emptyRepoSnapshot(rootHint?: string): RepoSnapshot {
     groups: [
       { id: 'conflicted', title: 'Merge conflicts', files: [] },
       { id: 'staged', title: 'Staged', files: [] },
-      { id: 'unstaged', title: 'Changes', files: [] },
-      { id: 'untracked', title: 'Untracked', files: [] },
+      { id: 'unstaged', title: 'Unstaged', files: [] },
+      { id: 'untracked', title: 'Unversioned files', files: [] },
     ],
     deselectedPaths: [],
     updatedAt: Date.now(),
