@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 15;
+export const PROTOCOL_VERSION = 16;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -108,6 +108,7 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'refreshView' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'quickStash' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'openDiff'; payload: { path: string } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'openFirstMergeConflictDiffFromWebview' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string; amend?: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitAndPush'; payload: { message: string; amend?: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' }
@@ -163,6 +164,10 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
       return undefined;
     }
     return { protocolVersion: PROTOCOL_VERSION, type: 'openDiff', payload: { path: pathStr } };
+  }
+
+  if (msg.type === 'openFirstMergeConflictDiffFromWebview') {
+    return { protocolVersion: PROTOCOL_VERSION, type: 'openFirstMergeConflictDiffFromWebview' };
   }
 
   if (msg.type === 'requestHeadCommitMessage') {

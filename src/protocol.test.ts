@@ -54,6 +54,13 @@ describe('parseWebviewMessage', () => {
     expect(parseWebviewMessage({ protocolVersion: pv, type: 'openDiff', payload: { path: '' } })).toBeUndefined();
   });
 
+  it('parses openFirstMergeConflictDiffFromWebview', () => {
+    expect(parseWebviewMessage({ protocolVersion: pv, type: 'openFirstMergeConflictDiffFromWebview' })).toEqual({
+      protocolVersion: pv,
+      type: 'openFirstMergeConflictDiffFromWebview',
+    });
+  });
+
   it('parses commit and commitAndPush with amend', () => {
     expect(
       parseWebviewMessage({

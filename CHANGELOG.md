@@ -9,20 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Repository chrome:** snapshots now include **`headLabel`** (branch name or `detached @ …`) shown beside the repo folder in the Commit webview; protocol **15**.
+- **Repository chrome:** snapshots now include **`headLabel`** (branch name or `detached @ …`) shown beside the repo folder in the Commit webview; protocol **16**.
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
+- **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
 - **History:** palette **Revert Commit…** runs `git revert --no-edit` after a modal confirm, with the same clean-tree guard as cherry-pick.
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
-- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **15**) so the webview can hide **Commit and Push** without a reload.
+- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **16**) so the webview can hide **Commit and Push** without a reload.
 - **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
 - **External merge tool:** **`commitDock.externalMergeToolPath`** plus **Open External Merge Tool for Conflict…** (palette) launches a user-provided merge tool with one conflict path argument (no shell).
 - **Change list toolbar:** **Expand all** / **Collapse all** for the `<details>` change groups (toolbar parity toward **#28**; directory tree grouping remains future work).
 
 ### Changed
 
+- **Protocol:** host↔webview version is now **16** (new webview→host message for the merge-conflict banner shortcut).
 - **Docs:** clarify that Marketplace **`/items?itemName=…`** pages can 404 in a browser even when `vsce show` succeeds; document `vscode:extension/…` and `@id:…` install paths.
 - **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
 - **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
