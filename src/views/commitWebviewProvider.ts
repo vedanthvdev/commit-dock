@@ -158,7 +158,12 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
             if (msg.type === 'commit' || msg.type === 'commitAndPush') {
               this._postCommitResult(false, 'No Git repository is active.');
             }
-            if (msg.type === 'refreshView' || msg.type === 'quickStash' || msg.type === 'openDiff') {
+            if (
+              msg.type === 'refreshView' ||
+              msg.type === 'quickStash' ||
+              msg.type === 'openDiff' ||
+              msg.type === 'openFirstMergeConflictDiffFromWebview'
+            ) {
               return;
             }
             if (msg.type === 'requestHeadCommitMessage') {
@@ -269,6 +274,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
           if (msg.type === 'openDiff') {
             await this._openDiffForPath(repo, msg.payload.path);
+            return;
+          }
+
+          if (msg.type === 'openFirstMergeConflictDiffFromWebview') {
+            await vscode.commands.executeCommand('commitDock.openFirstMergeConflictDiff');
             return;
           }
 

@@ -939,6 +939,28 @@ function renderRepoSnapshot(
   const toolbar = document.createElement('div');
   toolbar.className = 'selection-toolbar changes-toolbar';
   wireChangesToolbar(vscodeApi, toolbar, snapshot, toolbarDeps.beginRepoMutation, toolbarDeps.setActionStatus);
+
+  const conflictGroup = snapshot.groups.find((g) => g.id === 'conflicted');
+  const conflictCount = conflictGroup?.files.length ?? 0;
+  if (conflictCount > 0) {
+    const banner = document.createElement('div');
+    banner.className = 'commit-dock-conflict-banner';
+    const text = document.createElement('span');
+    text.textContent = `Merge conflicts (${conflictCount}): resolve before commit.`;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'commit-dock-conflict-banner__btn';
+    btn.textContent = 'Open first conflict';
+    btn.addEventListener('click', () => {
+      vscodeApi.postMessage({
+        protocolVersion: PROTOCOL_VERSION,
+        type: 'openFirstMergeConflictDiffFromWebview',
+      });
+    });
+    banner.append(text, btn);
+    changes.appendChild(banner);
+  }
+
   changes.appendChild(toolbar);
 
   const persisted = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
