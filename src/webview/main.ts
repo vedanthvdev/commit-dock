@@ -612,8 +612,8 @@ function main(): void {
 
   updateCommitPanelState();
 
-  window.addEventListener('message', (event: MessageEvent<HostToWebviewMessage>) => {
-    const msg = event.data;
+  window.addEventListener('message', (event: MessageEvent) => {
+    const msg = event.data as HostToWebviewMessage | undefined;
     if (!msg || msg.protocolVersion !== PROTOCOL_VERSION) {
       return;
     }
@@ -946,7 +946,7 @@ function renderRepoSnapshot(
   if (repoLine) {
     if (snapshot.rootName) {
       repoLine.hidden = false;
-      repoLine.textContent = snapshot.rootName;
+      repoLine.textContent = snapshot.headLabel ? `${snapshot.rootName} · ${snapshot.headLabel}` : snapshot.rootName;
       if (snapshot.rootPath) {
         repoLine.title = snapshot.rootPath;
       } else {

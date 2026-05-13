@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 14;
+export const PROTOCOL_VERSION = 15;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -50,6 +50,8 @@ export interface RepoSnapshot {
   rootPath: string;
   /** Short label for the repository (often a folder name). */
   rootName: string;
+  /** Short description of `HEAD` for the webview chrome (branch name or detached tip). */
+  headLabel?: string;
   groups: Array<{
     id: SnapshotGroupId;
     title: string;

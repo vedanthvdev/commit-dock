@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import type { API, Change, Repository } from './git-api';
+import type { API, Branch, Change, Repository } from './git-api';
 import { Status } from './git-api';
 import type { RepoSnapshot, SnapshotFile, SnapshotGroupId } from '../protocol';
 import { fileCodiconFromPath } from './file-codicons';
@@ -227,6 +227,16 @@ function toFile(
   };
 }
 
+function headDisplayLabel(head: Branch | undefined): string | undefined {
+  if (!head?.commit) {
+    return undefined;
+  }
+  if (head.name) {
+    return head.name;
+  }
+  return `detached @ ${head.commit.slice(0, 7)}`;
+}
+
 export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<string>): RepoSnapshot {
   const rootPath = repo.rootUri.fsPath;
   const rootName = vscode.workspace.asRelativePath(repo.rootUri, true) || repo.rootUri.fsPath;
@@ -254,6 +264,7 @@ export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<stri
   return {
     rootPath,
     rootName,
+    headLabel: headDisplayLabel(repo.state.HEAD),
     groups: [
       { id: 'conflicted', title: 'Merge conflicts', files: conflicted },
       { id: 'staged', title: 'Staged', files: staged },
@@ -271,6 +282,7 @@ export function emptyRepoSnapshot(rootHint?: string): RepoSnapshot {
   return {
     rootPath,
     rootName,
+    headLabel: undefined,
     groups: [
       { id: 'conflicted', title: 'Merge conflicts', files: [] },
       { id: 'staged', title: 'Staged', files: [] },
