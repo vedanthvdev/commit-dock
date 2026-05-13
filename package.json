@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
@@ -232,7 +232,10 @@
         },
         "commitDock.copyHeadRevisionFormat": {
           "type": "string",
-          "enum": ["full", "short"],
+          "enum": [
+            "full",
+            "short"
+          ],
           "default": "full",
           "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }
