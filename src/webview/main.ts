@@ -46,6 +46,45 @@ function main(): void {
   });
 }
 
+function wireSelectionToolbar(
+  vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
+  toolbar: HTMLElement,
+): void {
+  toolbar.replaceChildren();
+
+  const selectAll = document.createElement('button');
+  selectAll.type = 'button';
+  selectAll.className = 'selection-toolbar__btn';
+  selectAll.textContent = 'Select all';
+  selectAll.addEventListener('click', () => {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'selectAll' });
+  });
+
+  const deselectAll = document.createElement('button');
+  deselectAll.type = 'button';
+  deselectAll.className = 'selection-toolbar__btn';
+  deselectAll.textContent = 'Deselect all';
+  deselectAll.addEventListener('click', () => {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'deselectAll' });
+  });
+
+  toolbar.append(selectAll, deselectAll);
+}
+
+function wireChangesHotkeys(
+  vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
+  changes: HTMLElement,
+): void {
+  changes.addEventListener('keydown', (e: KeyboardEvent) => {
+    const isMetaA = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'a';
+    if (!isMetaA) {
+      return;
+    }
+    e.preventDefault();
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'selectAll' });
+  });
+}
+
 function renderRepoSnapshot(
   vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
   snapshot: RepoSnapshot,
@@ -58,6 +97,16 @@ function renderRepoSnapshot(
 
   changes.hidden = false;
   changes.replaceChildren();
+
+  if (!changes.dataset.commitDockHotkeys) {
+    changes.dataset.commitDockHotkeys = '1';
+    wireChangesHotkeys(vscodeApi, changes);
+  }
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'selection-toolbar';
+  wireSelectionToolbar(vscodeApi, toolbar);
+  changes.appendChild(toolbar);
 
   if (repoLine) {
     if (snapshot.rootName) {
@@ -77,10 +126,41 @@ function renderRepoSnapshot(
 
     const summary = document.createElement('summary');
     summary.className = 'changes__summary';
-    summary.textContent = `${group.title} (${group.files.length})`;
-    details.appendChild(summary);
 
     const count = group.files.length;
+
+    if (group.id === 'conflicted') {
+      summary.textContent = `${group.title} (${count})`;
+    } else {
+      const row = document.createElement('span');
+      row.className = 'changes__summary-row';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'group-checkbox';
+      cb.dataset.group = group.id;
+      const selectedCount = group.files.filter((f) => f.selected).length;
+      cb.checked = count > 0 && selectedCount === count;
+      cb.indeterminate = selectedCount > 0 && selectedCount < count;
+      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('change', () => {
+        vscodeApi.postMessage({
+          protocolVersion: PROTOCOL_VERSION,
+          type: 'setGroupSelection',
+          payload: { group: group.id, checked: cb.checked },
+        });
+      });
+
+      const label = document.createElement('span');
+      label.className = 'changes__summary-label';
+      label.textContent = `${group.title} (${count})`;
+
+      row.append(cb, label);
+      summary.appendChild(row);
+    }
+
+    details.appendChild(summary);
+
     const persistedOpen = persisted.detailsOpen?.[group.id];
     details.open = persistedOpen !== undefined ? persistedOpen : count > 0;
 
@@ -108,6 +188,22 @@ function renderRepoSnapshot(
       for (const file of group.files) {
         const li = document.createElement('li');
         li.className = `file-list__row file-list__row--${group.id}`;
+
+        if (group.id !== 'conflicted') {
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'row-checkbox';
+          cb.checked = file.selected;
+          cb.dataset.path = file.path;
+          cb.addEventListener('change', () => {
+            vscodeApi.postMessage({
+              protocolVersion: PROTOCOL_VERSION,
+              type: 'setPathSelected',
+              payload: { path: file.path, selected: cb.checked },
+            });
+          });
+          li.appendChild(cb);
+        }
 
         const icon = document.createElement('span');
         icon.className = file.codicon;

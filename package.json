@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "vedanthvdev",
   "license": "MIT",
   "repository": {
@@ -27,7 +27,9 @@
   ],
   "activationEvents": [
     "onView:commitDock.commitView",
-    "onCommand:commitDock.showCommitView"
+    "onCommand:commitDock.showCommitView",
+    "onCommand:commitDock.selectAll",
+    "onCommand:commitDock.deselectAll"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -56,6 +58,14 @@
       {
         "command": "commitDock.showCommitView",
         "title": "Commit Dock: Focus Commit View"
+      },
+      {
+        "command": "commitDock.selectAll",
+        "title": "Commit Dock: Select All Changes"
+      },
+      {
+        "command": "commitDock.deselectAll",
+        "title": "Commit Dock: Deselect All Changes"
       }
     ]
   },

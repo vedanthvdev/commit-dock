@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import type { API, Change, Repository } from './git-api';
 import { Status } from './git-api';
-import type { RepoSnapshot, SnapshotGroupId } from '../protocol';
+import type { RepoSnapshot, SnapshotFile, SnapshotGroupId } from '../protocol';
 
 export function pickPrimaryRepository(api: API): Repository | undefined {
   const editor = vscode.window.activeTextEditor;
@@ -28,6 +28,29 @@ export function pickPrimaryRepository(api: API): Repository | undefined {
   }
 
   return api.repositories[0];
+}
+
+export function getSelectablePathsForGroup(repo: Repository, group: SnapshotGroupId): string[] {
+  switch (group) {
+    case 'conflicted':
+      return [];
+    case 'staged':
+      return repo.state.indexChanges.map((c) => c.uri.fsPath);
+    case 'unstaged':
+      return repo.state.workingTreeChanges.map((c) => c.uri.fsPath);
+    case 'untracked':
+      return repo.state.untrackedChanges.map((c) => c.uri.fsPath);
+    default:
+      return [];
+  }
+}
+
+export function getAllSelectablePaths(repo: Repository): string[] {
+  return [
+    ...getSelectablePathsForGroup(repo, 'staged'),
+    ...getSelectablePathsForGroup(repo, 'unstaged'),
+    ...getSelectablePathsForGroup(repo, 'untracked'),
+  ];
 }
 
 function statusLabel(status: Status): string {
@@ -98,7 +121,12 @@ function codiconForStatus(group: SnapshotGroupId, status: Status): string {
   }
 }
 
-function toFile(repoRoot: string, group: SnapshotGroupId, change: Change): SnapshotFile {
+function toFile(
+  _repoRoot: string,
+  group: SnapshotGroupId,
+  change: Change,
+  deselected: ReadonlySet<string>,
+): SnapshotFile {
   const uri = change.uri;
   const path = uri.fsPath;
   const relPath = vscode.workspace.asRelativePath(uri, true);
@@ -109,23 +137,33 @@ function toFile(repoRoot: string, group: SnapshotGroupId, change: Change): Snaps
     statusLabel: statusLabel(change.status),
     group,
     codicon: codiconForStatus(group, change.status),
+    selected: !deselected.has(path),
   };
 }
 
-export function buildRepoSnapshot(repo: Repository): RepoSnapshot {
+export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<string>): RepoSnapshot {
   const rootPath = repo.rootUri.fsPath;
   const rootName = vscode.workspace.asRelativePath(repo.rootUri, true) || repo.rootUri.fsPath;
 
-  const conflicted: SnapshotFile[] = repo.state.mergeChanges.map((c) => toFile(rootPath, 'conflicted', c));
-  const staged: SnapshotFile[] = repo.state.indexChanges.map((c) => toFile(rootPath, 'staged', c));
-  const unstaged: SnapshotFile[] = repo.state.workingTreeChanges.map((c) => toFile(rootPath, 'unstaged', c));
-  const untracked: SnapshotFile[] = repo.state.untrackedChanges.map((c) => toFile(rootPath, 'untracked', c));
+  const conflicted: SnapshotFile[] = repo.state.mergeChanges.map((c) =>
+    toFile(rootPath, 'conflicted', c, deselected),
+  );
+  const staged: SnapshotFile[] = repo.state.indexChanges.map((c) => toFile(rootPath, 'staged', c, deselected));
+  const unstaged: SnapshotFile[] = repo.state.workingTreeChanges.map((c) =>
+    toFile(rootPath, 'unstaged', c, deselected),
+  );
+  const untracked: SnapshotFile[] = repo.state.untrackedChanges.map((c) =>
+    toFile(rootPath, 'untracked', c, deselected),
+  );
 
   const sortByPath = (a: SnapshotFile, b: SnapshotFile) => a.relPath.localeCompare(b.relPath);
   conflicted.sort(sortByPath);
   staged.sort(sortByPath);
   unstaged.sort(sortByPath);
   untracked.sort(sortByPath);
+
+  const selectable = new Set(getAllSelectablePaths(repo));
+  const deselectedPaths = [...deselected].filter((p) => selectable.has(p)).sort();
 
   return {
     rootPath,
@@ -136,6 +174,7 @@ export function buildRepoSnapshot(repo: Repository): RepoSnapshot {
       { id: 'unstaged', title: 'Changes', files: unstaged },
       { id: 'untracked', title: 'Untracked', files: untracked },
     ],
+    deselectedPaths,
     updatedAt: Date.now(),
   };
 }
@@ -152,6 +191,7 @@ export function emptyRepoSnapshot(rootHint?: string): RepoSnapshot {
       { id: 'unstaged', title: 'Changes', files: [] },
       { id: 'untracked', title: 'Untracked', files: [] },
     ],
+    deselectedPaths: [],
     updatedAt: Date.now(),
   };
 }

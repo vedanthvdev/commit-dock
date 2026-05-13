@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -14,6 +14,8 @@ export interface SnapshotFile {
   group: SnapshotGroupId;
   /** Full codicon class list, e.g. `codicon codicon-diff-modified`. */
   codicon: string;
+  /** Whether the file is selected for bulk actions (not in the deselected set). */
+  selected: boolean;
 }
 
 export interface RepoSnapshot {
@@ -25,6 +27,8 @@ export interface RepoSnapshot {
     title: string;
     files: SnapshotFile[];
   }>;
+  /** Absolute paths the user has explicitly unchecked (all others are treated as selected). */
+  deselectedPaths: string[];
   updatedAt: number;
 }
 
@@ -35,7 +39,13 @@ export type HostToWebviewMessage =
 
 export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'ready' }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'noop' };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'noop' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'setPathSelected'; payload: { path: string; selected: boolean } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'setGroupSelection'; payload: { group: SnapshotGroupId; checked: boolean } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'selectAll' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'deselectAll' };
+
+const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
 export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undefined {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -48,8 +58,53 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
   if (typeof msg.type !== 'string') {
     return undefined;
   }
+
   if (msg.type === 'ready' || msg.type === 'noop') {
     return msg as WebviewToHostMessage;
   }
+
+  if (msg.type === 'selectAll' || msg.type === 'deselectAll') {
+    return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'setPathSelected') {
+    const payload = (msg as { payload?: unknown }).payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+    const path = (payload as { path?: unknown }).path;
+    const selected = (payload as { selected?: unknown }).selected;
+    if (typeof path !== 'string' || path.length === 0) {
+      return undefined;
+    }
+    if (typeof selected !== 'boolean') {
+      return undefined;
+    }
+    return { protocolVersion: PROTOCOL_VERSION, type: 'setPathSelected', payload: { path, selected } };
+  }
+
+  if (msg.type === 'setGroupSelection') {
+    const payload = (msg as { payload?: unknown }).payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+    const group = (payload as { group?: unknown }).group;
+    const checked = (payload as { checked?: unknown }).checked;
+    if (typeof group !== 'string' || !GROUP_IDS.has(group)) {
+      return undefined;
+    }
+    if (typeof checked !== 'boolean') {
+      return undefined;
+    }
+    if (group === 'conflicted') {
+      return undefined;
+    }
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'setGroupSelection',
+      payload: { group: group as SnapshotGroupId, checked },
+    };
+  }
+
   return undefined;
 }
