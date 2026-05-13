@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Marketplace:** set `package.json` **`publisher`** to **`VedanthVasuDev`** so it matches the Visual Studio Marketplace publisher id (was `vedanthvdev`, which did not match the manage URL and blocked a public listing under your publisher).
+- **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
+- **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
 - GitHub **default branch** is now **`master`** (was `main`). CI runs on pushes and PRs targeting `master`.
 
 ### Planned

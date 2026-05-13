@@ -3,7 +3,7 @@
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
   "version": "0.9.6",
-  "publisher": "vedanthvdev",
+  "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
   "repository": {
@@ -136,7 +136,8 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package"
+    "package": "vsce package",
+    "publish:marketplace": "vsce publish --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
