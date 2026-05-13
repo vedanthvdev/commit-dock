@@ -451,7 +451,6 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
     this._postStashResult(true);
-    void vscode.window.showInformationMessage('Commit Dock: stash dropped.');
     this._postSnapshotImmediate(repo);
   }
 

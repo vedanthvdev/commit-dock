@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.1] - 2026-05-13
+
+### Fixed
+
+- **Release workflow:** create or update the **GitHub Release** (with VSIX) **before** attempting Marketplace publish. Missing **`VSCE_PAT`** no longer fails the job before `gh release create`, which previously left the [Releases](https://github.com/vedanthvdev/commit-dock/releases) page empty for new tags. Marketplace publish is skipped with a notice when the secret is unset.
+- **Re-releases:** if a release for the tag already exists, the workflow **uploads** the new VSIX with **`gh release upload --clobber`** instead of failing.
+
+### Changed
+
+- **Stash drop:** removed a redundant toast after a successful drop (the webview list refreshes).
+
 ## [0.9.0] - 2026-05-13
 
 ### Added
@@ -100,11 +111,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dual **esbuild** pipeline: extension host (`dist/extension.js`) and webview (`dist/webview/main.js` + `main.css`).
 - **`vscode.git` extension dependency** and defensive Git API bootstrap (`getGitApi`).
 - Typed **host↔webview protocol** with `protocolVersion`.
-- Command **Commit Dock: Focus Commit View** (`commitDock.showCommitView`).
+- Command to focus the commit view (`commitDock.showCommitView`).
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...v0.7.0
