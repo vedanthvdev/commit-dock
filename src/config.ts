@@ -18,3 +18,11 @@ export function getConfirmBeforeDiscard(): boolean {
     .get<boolean>('confirmBeforeDiscard');
   return v !== false;
 }
+
+/** When true, show pending change count on the Commit Dock activity bar icon. */
+export function getShowActivityBarBadge(): boolean {
+  const v = vscode.workspace
+    .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
+    .get<boolean>('showActivityBarBadge');
+  return v !== false;
+}

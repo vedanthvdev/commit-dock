@@ -3,6 +3,7 @@ import type { API, Change, Repository } from './git-api';
 import { Status } from './git-api';
 import type { RepoSnapshot, SnapshotFile, SnapshotGroupId } from '../protocol';
 import { fileCodiconFromPath } from './file-codicons';
+import { mergedUntrackedChanges, unstagedWorkingTreeChanges } from './repo-change-model';
 
 export function pickPrimaryRepository(api: API): Repository | undefined {
   const editor = vscode.window.activeTextEditor;
@@ -29,28 +30,6 @@ export function pickPrimaryRepository(api: API): Repository | undefined {
   }
 
   return api.repositories[0];
-}
-
-/** VS Code sometimes reports `Status.UNTRACKED` under `workingTreeChanges`; IntelliJ shows those as unversioned. */
-function isUntrackedWorkingTreeChange(c: Change): boolean {
-  return c.status === Status.UNTRACKED;
-}
-
-function unstagedWorkingTreeChanges(repo: Repository): Change[] {
-  return repo.state.workingTreeChanges.filter((c) => !isUntrackedWorkingTreeChange(c));
-}
-
-function mergedUntrackedChanges(repo: Repository): Change[] {
-  const byPath = new Map<string, Change>();
-  for (const c of repo.state.untrackedChanges) {
-    byPath.set(c.uri.fsPath, c);
-  }
-  for (const c of repo.state.workingTreeChanges) {
-    if (isUntrackedWorkingTreeChange(c)) {
-      byPath.set(c.uri.fsPath, c);
-    }
-  }
-  return [...byPath.values()];
 }
 
 /** Paths Git treats as untracked / unversioned (matches IntelliJ’s split better than raw `untrackedChanges` alone). */

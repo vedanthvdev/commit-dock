@@ -14,6 +14,7 @@
 | --- | --- | --- |
 | `commitDock.snapshotDebounceMs` | `150` | Wait after Git reports a change before rebuilding the file list (0–2000 ms). |
 | `commitDock.confirmBeforeDiscard` | `true` | If `false`, **Discard** runs immediately without a confirmation dialog. |
+| `commitDock.showActivityBarBadge` | `true` | When `true`, the Commit Dock activity bar icon shows how many paths have pending work in the **primary** repository (same scope as the Commit view). |
 
 Configure under **Settings → Extensions → Commit Dock**, or edit `settings.json`.
 

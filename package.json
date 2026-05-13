@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.9.8",
+  "version": "0.9.6",
   "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
@@ -124,6 +124,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "When enabled, **Discard** asks for confirmation before deleting untracked files or reverting working tree files."
+        },
+        "commitDock.showActivityBarBadge": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show a numeric badge on the **Commit Dock** activity bar icon when the primary repository has pending changes (merge conflicts, staged, unstaged, or unversioned paths)."
         }
       }
     }
