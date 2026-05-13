@@ -16,9 +16,13 @@ import {
   pathsToUnstage,
   pickPrimaryRepository,
 } from '../git/snapshot';
+import { listHeadCommitRelativePaths } from '../git/head-commit-files';
+import { createStashWithRepoApiFallback, type RepoWithOptionalCreateStash } from '../git/stash-create-cli';
+import { restoreWorkingTreePathsCli } from '../git/worktree-restore';
 import {
   PROTOCOL_VERSION,
   parseWebviewMessage,
+  type AmendHeadFileEntry,
   type HostToWebviewMessage,
   type StashSnapshotEntry,
 } from '../protocol';
@@ -120,8 +124,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           }
 
           if (!this._currentRepo) {
-            if (msg.type === 'commit') {
+            if (msg.type === 'commit' || msg.type === 'commitAndPush') {
               this._postCommitResult(false, 'No Git repository is active.');
+            }
+            if (msg.type === 'refreshView' || msg.type === 'quickStash' || msg.type === 'openDiff') {
+              return;
             }
             if (msg.type === 'requestHeadCommitMessage') {
               this._postHeadCommitMessage(false, undefined, 'No Git repository is active.');
@@ -205,8 +212,31 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
+          if (msg.type === 'refreshView') {
+            this._postSnapshotImmediate(repo);
+            return;
+          }
+
+          if (msg.type === 'quickStash') {
+            await this._quickStash(repo);
+            return;
+          }
+
+          if (msg.type === 'openDiff') {
+            await this._openDiffForPath(repo, msg.payload.path);
+            return;
+          }
+
           if (msg.type === 'commit') {
             await this._commit(repo, set, msg.payload.message, msg.payload.amend === true);
+            return;
+          }
+
+          if (msg.type === 'commitAndPush') {
+            const committed = await this._commit(repo, set, msg.payload.message, msg.payload.amend === true);
+            if (committed) {
+              await this._gitPush(repo, false);
+            }
             return;
           }
 
@@ -244,6 +274,10 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           void vscode.window.showErrorMessage(
             `Commit Dock: unexpected error — ${err instanceof Error ? err.message : String(err)}`,
           );
+          const repoAfterError = this._currentRepo;
+          if (repoAfterError) {
+            void this._postSnapshotImmediate(repoAfterError);
+          }
         }
       }),
     );
@@ -462,76 +496,96 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _stageSelected(repo: Repository, set: Set<string>): Promise<void> {
-    const selected = getSelectedSelectablePaths(repo, set);
-    const toStage = pathsToStage(repo, selected);
-    if (!toStage.length) {
-      return;
-    }
     try {
-      await repo.add(toStage);
-    } catch (err) {
-      this._showGitError('Stage', err);
-      return;
+      const selected = getSelectedSelectablePaths(repo, set);
+      const toStage = pathsToStage(repo, selected);
+      if (!toStage.length) {
+        return;
+      }
+      try {
+        await repo.add(toStage);
+      } catch (err) {
+        this._showGitError('Stage', err);
+        return;
+      }
+      for (const p of toStage) {
+        set.delete(p);
+      }
+    } finally {
+      this._postSnapshotImmediate(repo);
     }
-    for (const p of toStage) {
-      set.delete(p);
-    }
-    this._postSnapshotImmediate(repo);
   }
 
   private async _unstageSelected(repo: Repository, set: Set<string>): Promise<void> {
-    const selected = getSelectedSelectablePaths(repo, set);
-    const toUnstage = pathsToUnstage(repo, selected);
-    if (!toUnstage.length) {
-      return;
-    }
     try {
-      await repo.revert(toUnstage);
-    } catch (err) {
-      this._showGitError('Unstage', err);
-      return;
+      const selected = getSelectedSelectablePaths(repo, set);
+      const toUnstage = pathsToUnstage(repo, selected);
+      if (!toUnstage.length) {
+        return;
+      }
+      try {
+        await repo.revert(toUnstage);
+      } catch (err) {
+        this._showGitError('Unstage', err);
+        return;
+      }
+      for (const p of toUnstage) {
+        set.delete(p);
+      }
+    } finally {
+      this._postSnapshotImmediate(repo);
     }
-    for (const p of toUnstage) {
-      set.delete(p);
-    }
-    this._postSnapshotImmediate(repo);
   }
 
   private async _discardSelected(repo: Repository, set: Set<string>): Promise<void> {
-    const selected = getSelectedSelectablePaths(repo, set);
-    const { clean, restore } = pathsToDiscard(repo, selected);
-    if (!clean.length && !restore.length) {
-      return;
-    }
-    if (getConfirmBeforeDiscard()) {
-      const total = clean.length + restore.length;
-      const confirm = await vscode.window.showWarningMessage(
-        `Discard ${total} selected file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
-        { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
-        'Discard',
-      );
-      if (confirm !== 'Discard') {
+    try {
+      const selected = getSelectedSelectablePaths(repo, set);
+      const { clean, restore } = pathsToDiscard(repo, selected);
+      if (!clean.length && !restore.length) {
         return;
       }
-    }
-    try {
-      if (clean.length) {
-        await repo.clean(clean);
+      if (getConfirmBeforeDiscard()) {
+        const total = clean.length + restore.length;
+        const confirm = await vscode.window.showWarningMessage(
+          `Discard ${total} selected file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
+          { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
+          'Discard',
+        );
+        if (confirm !== 'Discard') {
+          return;
+        }
       }
-      if (restore.length) {
-        await repo.restore(restore, {});
+      try {
+        if (clean.length) {
+          await repo.clean(clean);
+        }
+        if (restore.length) {
+          const r = repo as unknown as {
+            restore?: (paths: string[], options?: { staged?: boolean; ref?: string }) => Promise<void>;
+          };
+          if (typeof r.restore === 'function') {
+            try {
+              await r.restore(restore, {});
+            } catch {
+              await restoreWorkingTreePathsCli(repo.rootUri.fsPath, restore);
+            }
+          } else {
+            await restoreWorkingTreePathsCli(repo.rootUri.fsPath, restore);
+          }
+        }
+      } catch (err) {
+        this._showGitError('Discard', err);
+        return;
       }
-    } catch (err) {
-      this._showGitError('Discard', err);
-      return;
+      for (const p of clean) {
+        set.delete(p);
+      }
+      for (const p of restore) {
+        set.delete(p);
+      }
+    } finally {
+      this._postSnapshotImmediate(repo);
     }
-    for (const p of clean) {
-      set.delete(p);
-    }
-    for (const p of restore) {
-      set.delete(p);
-    }
-    this._postSnapshotImmediate(repo);
   }
 
   private _postCommitResult(ok: boolean, detail?: string): void {
@@ -576,11 +630,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async _commit(repo: Repository, set: Set<string>, message: string, amend: boolean): Promise<void> {
+  private async _commit(repo: Repository, set: Set<string>, message: string, amend: boolean): Promise<boolean> {
     if (repo.state.mergeChanges.length > 0) {
       this._postCommitResult(false, 'Resolve merge conflicts before committing.');
       void vscode.window.showErrorMessage('Commit Dock: resolve merge conflicts before committing.');
-      return;
+      return false;
     }
 
     let body = message.trim();
@@ -588,7 +642,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       const ref = repo.state.HEAD?.commit;
       if (!ref) {
         this._postCommitResult(false, 'There is no commit to amend.');
-        return;
+        return false;
       }
       try {
         const head = await repo.getCommit(ref);
@@ -596,13 +650,13 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       } catch (err) {
         this._showGitError('Load HEAD commit', err);
         this._postCommitResult(false, err instanceof Error ? err.message : String(err));
-        return;
+        return false;
       }
     }
 
     if (!body) {
       this._postCommitResult(false, 'Enter a commit message.');
-      return;
+      return false;
     }
 
     try {
@@ -618,16 +672,50 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       if (!amend && repo.state.indexChanges.length === 0) {
         this._postCommitResult(false, 'Nothing to commit (index is empty).');
         void vscode.window.showInformationMessage('Commit Dock: nothing to commit.');
-        return;
+        return false;
       }
       await repo.commit(body, amend ? { amend: true } : undefined);
     } catch (err) {
       this._showGitError('Commit', err);
       this._postCommitResult(false, err instanceof Error ? err.message : String(err));
-      return;
+      return false;
     }
     this._postCommitResult(true);
     this._postSnapshotImmediate(repo);
+    return true;
+  }
+
+  private async _quickStash(repo: Repository): Promise<void> {
+    try {
+      await createStashWithRepoApiFallback(repo.rootUri.fsPath, repo as unknown as RepoWithOptionalCreateStash, {
+        includeUntracked: true,
+        message: 'WIP (Commit Dock)',
+      });
+      this._postStashResult(true);
+    } catch (err) {
+      this._showGitError('Create stash', err);
+      this._postStashResult(false, err instanceof Error ? err.message : String(err));
+    } finally {
+      this._postSnapshotImmediate(repo);
+    }
+  }
+
+  private async _openDiffForPath(repo: Repository, fsPath: string): Promise<void> {
+    const normPath = path.normalize(fsPath);
+    const normRoot = path.normalize(repo.rootUri.fsPath);
+    if (normPath !== normRoot && !normPath.startsWith(`${normRoot}${path.sep}`)) {
+      return;
+    }
+    const uri = vscode.Uri.file(normPath);
+    try {
+      await vscode.commands.executeCommand('git.openChange', uri);
+    } catch {
+      try {
+        await vscode.window.showTextDocument(uri);
+      } catch {
+        void vscode.window.showWarningMessage('Commit Dock: could not open a diff for that file.');
+      }
+    }
   }
 
   private _postPushResult(ok: boolean, detail?: string): void {
@@ -859,7 +947,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._postSnapshot(repo);
   }
 
-  private _postSnapshot(repo: Repository): void {
+  private async _postSnapshot(repo: Repository): Promise<void> {
     const view = this._view;
     if (!view) {
       return;
@@ -869,7 +957,41 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._pruneDeselected(repo);
 
     const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
-    const payload = buildRepoSnapshot(repo, set);
+    const base = buildRepoSnapshot(repo, set);
+
+    let amendHeadFiles: readonly AmendHeadFileEntry[] | undefined;
+    try {
+      const rels = await listHeadCommitRelativePaths(repo.rootUri.fsPath);
+      const rootResolved = path.resolve(repo.rootUri.fsPath);
+      const entries: AmendHeadFileEntry[] = [];
+      const seenAbs = new Set<string>();
+      for (const rel of rels) {
+        if (rel.includes('\0')) {
+          continue;
+        }
+        const abs = path.isAbsolute(rel) ? path.resolve(rel) : path.resolve(rootResolved, rel);
+        const relativeFromRoot = path.relative(rootResolved, abs);
+        if (relativeFromRoot === '..' || relativeFromRoot.startsWith(`..${path.sep}`)) {
+          continue;
+        }
+        const normAbs = path.normalize(abs);
+        const dedupeKey = normAbs.toLowerCase();
+        if (seenAbs.has(dedupeKey)) {
+          continue;
+        }
+        seenAbs.add(dedupeKey);
+        const uri = vscode.Uri.file(normAbs);
+        const relPath = vscode.workspace.asRelativePath(uri, true) || rel;
+        entries.push({ path: normAbs, relPath });
+      }
+      if (entries.length > 0) {
+        amendHeadFiles = entries;
+      }
+    } catch {
+      amendHeadFiles = undefined;
+    }
+
+    const payload = amendHeadFiles ? { ...base, amendHeadFiles } : base;
     const msg: HostToWebviewMessage = {
       protocolVersion: PROTOCOL_VERSION,
       type: 'repoSnapshot',
@@ -908,40 +1030,93 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 <body>
   <div id="app" class="app">
     <header class="header">
-      <span class="codicon codicon-git-commit"></span>
-      <span id="title">Commit Dock</span>
+      <span class="codicon codicon-git-commit header__icon" aria-hidden="true"></span>
+      <div class="header__text">
+        <span id="title" class="header__title">Commit Dock</span>
+        <p id="status" class="status">Loading…</p>
+      </div>
     </header>
-    <main class="main">
-      <p id="status" class="status">Loading…</p>
-      <p id="repo" class="repo" hidden></p>
-      <section id="commit-panel" class="commit-panel" hidden>
-        <label class="commit-panel__label" for="commit-message">Commit message</label>
-        <textarea id="commit-message" class="commit-panel__textarea" rows="4" spellcheck="true" placeholder="Describe your changes"></textarea>
-        <div class="commit-panel__row commit-panel__row--check">
-          <label class="commit-panel__check" for="commit-amend">
-            <input type="checkbox" id="commit-amend" />
-            <span>Amend previous commit</span>
-          </label>
+
+    <div id="workspace" class="workspace" hidden>
+      <nav class="tab-strip" role="tablist" aria-label="Commit Dock">
+        <button
+          type="button"
+          class="tab-strip__tab tab-strip__tab--active"
+          id="tab-commit"
+          role="tab"
+          aria-selected="true"
+          aria-controls="tab-panel-commit"
+          data-tab="commit"
+        >
+          Commit
+        </button>
+        <button
+          type="button"
+          class="tab-strip__tab"
+          id="tab-stash"
+          role="tab"
+          aria-selected="false"
+          aria-controls="tab-panel-stash"
+          data-tab="stash"
+        >
+          Stash
+        </button>
+      </nav>
+
+      <div class="tab-panels">
+        <div
+          id="tab-panel-commit"
+          class="tab-panel tab-panel--active"
+          role="tabpanel"
+          aria-labelledby="tab-commit"
+        >
+          <p id="repo" class="repo repo--ellipsis" hidden></p>
+          <section id="changes" class="changes changes--scroll" hidden tabindex="-1"></section>
+          <footer id="commit-panel" class="commit-dock-footer">
+            <label class="sr-only" for="commit-message">Commit message</label>
+            <div class="commit-dock-footer__row commit-dock-footer__row--amend">
+              <label class="commit-dock-footer__check" for="commit-amend">
+                <input type="checkbox" id="commit-amend" />
+                <span>Amend last commit</span>
+              </label>
+            </div>
+            <div class="commit-dock-footer__message-slot">
+              <textarea
+                id="commit-message"
+                class="commit-dock-footer__textarea"
+                rows="6"
+                spellcheck="true"
+                placeholder="Commit message"
+              ></textarea>
+            </div>
+            <p id="action-status" class="action-status" role="status" aria-live="polite" hidden></p>
+            <div class="commit-dock-footer__row commit-dock-footer__row--actions commit-dock-footer__row--primary">
+              <button type="button" id="commit-submit" class="selection-toolbar__btn selection-toolbar__btn--primary">Commit</button>
+              <button type="button" id="commit-and-push" class="selection-toolbar__btn selection-toolbar__btn--outline">Commit and Push…</button>
+            </div>
+            <div class="commit-dock-footer__row commit-dock-footer__row--actions commit-dock-footer__row--secondary">
+              <button type="button" id="commit-push-fwl" class="selection-toolbar__btn selection-toolbar__btn--danger" title="Push with --force-with-lease (confirms before running)">
+                Push (force-with-lease)
+              </button>
+            </div>
+            <p id="commit-hint" class="hint commit-dock-footer__hint" hidden></p>
+          </footer>
         </div>
-        <div class="commit-panel__row">
-          <button type="button" id="commit-submit" class="selection-toolbar__btn selection-toolbar__btn--primary">Commit</button>
+
+        <div id="tab-panel-stash" class="tab-panel" role="tabpanel" aria-labelledby="tab-stash" hidden>
+          <section id="stash-panel" class="stash-panel stash-panel--tab">
+            <div class="stash-toolbar">
+              <span class="stash-toolbar__title">Stashes</span>
+              <button type="button" id="stash-refresh" class="toolbar-icon-btn" title="Refresh stash list" aria-label="Refresh stash list">
+                <span class="codicon codicon-sync" aria-hidden="true"></span>
+              </button>
+            </div>
+            <p id="stash-hint" class="hint stash-panel__hint" hidden></p>
+            <ul id="stash-list" class="stash-list stash-list--scroll"></ul>
+          </section>
         </div>
-        <div class="commit-panel__row commit-panel__row--push">
-          <button type="button" id="commit-push" class="selection-toolbar__btn">Push</button>
-          <button type="button" id="commit-push-fwl" class="selection-toolbar__btn selection-toolbar__btn--danger">Push (force-with-lease)</button>
-        </div>
-        <p id="commit-hint" class="hint commit-panel__hint" hidden></p>
-      </section>
-      <section id="stash-panel" class="stash-panel" hidden>
-        <div class="stash-panel__header">
-          <h2 class="stash-panel__title">Stashes</h2>
-          <button type="button" id="stash-refresh" class="selection-toolbar__btn" title="Refresh stash list">Refresh</button>
-        </div>
-        <p id="stash-hint" class="hint stash-panel__hint" hidden></p>
-        <ul id="stash-list" class="stash-list"></ul>
-      </section>
-      <section id="changes" class="changes" hidden tabindex="-1"></section>
-    </main>
+      </div>
+    </div>
   </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>

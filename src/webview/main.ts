@@ -15,70 +15,170 @@ type PersistedUiState = {
   detailsOpen?: Record<string, boolean>;
   commitDraft?: string;
   commitAmend?: boolean;
+  commitDockTab?: 'commit' | 'stash';
 };
 
 function main(): void {
-  const vscodeApi = window.acquireVsCodeApi?.();
-  if (!vscodeApi) {
+  const vscodeApiRaw = window.acquireVsCodeApi?.();
+  if (!vscodeApiRaw) {
     return;
   }
+  const vscodeApi = vscodeApiRaw;
 
   vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'ready' });
+
+  const initialPersisted = vscodeApi.getState() as PersistedUiState | undefined;
+  let activeTab: 'commit' | 'stash' = initialPersisted?.commitDockTab === 'stash' ? 'stash' : 'commit';
 
   let lastGitOk = false;
   let lastSnapshot: RepoSnapshot | undefined;
   let committing = false;
   let pushing = false;
   let stashBusy = false;
+  let pendingCommitThenPush = false;
+  let uiMutationPending = false;
 
   const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
   const commitBtn = document.getElementById('commit-submit') as HTMLButtonElement | null;
+  const commitAndPushBtn = document.getElementById('commit-and-push') as HTMLButtonElement | null;
   const commitHint = document.getElementById('commit-hint') as HTMLParagraphElement | null;
   const amendCb = document.getElementById('commit-amend') as HTMLInputElement | null;
-  const pushBtn = document.getElementById('commit-push') as HTMLButtonElement | null;
   const pushFwlBtn = document.getElementById('commit-push-fwl') as HTMLButtonElement | null;
 
-  function updateCommitPanelState(): void {
-    const panel = document.getElementById('commit-panel');
-    if (panel) {
-      panel.hidden = !lastGitOk;
+  function applyCommitButtonLabels(): void {
+    const amend = amendCb?.checked ?? false;
+    if (commitBtn) {
+      commitBtn.textContent = amend ? 'Amend Commit' : 'Commit';
     }
-    if (textarea && commitBtn) {
-      const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
-      const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
-      const hasRepo = !!root;
-      const blocked = conflictCount > 0;
-      const busy = committing || pushing || stashBusy;
-      commitBtn.disabled = busy || !hasRepo || blocked;
-      textarea.disabled = !lastGitOk || !hasRepo;
-      if (amendCb) {
-        amendCb.disabled = !lastGitOk || !hasRepo;
-      }
-      if (pushBtn) {
-        pushBtn.disabled = busy || !hasRepo || blocked;
-      }
-      if (pushFwlBtn) {
-        pushFwlBtn.disabled = busy || !hasRepo || blocked;
-      }
+    if (commitAndPushBtn) {
+      commitAndPushBtn.textContent = amend ? 'Amend Commit and Push…' : 'Commit and Push…';
     }
-    updateStashPanelState();
+  }
+
+  let actionStatusTimer: number | undefined;
+
+  function setActionStatus(text: string, kind: 'info' | 'error' | 'success'): void {
+    const el = document.getElementById('action-status');
+    if (!el) {
+      return;
+    }
+    if (actionStatusTimer !== undefined) {
+      window.clearTimeout(actionStatusTimer);
+      actionStatusTimer = undefined;
+    }
+    if (!text) {
+      el.hidden = true;
+      el.textContent = '';
+      el.className = 'action-status';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = text;
+    el.className = `action-status action-status--${kind}`;
+    actionStatusTimer = window.setTimeout(() => {
+      el.hidden = true;
+      el.textContent = '';
+      el.className = 'action-status';
+      actionStatusTimer = undefined;
+    }, 7000);
+  }
+
+  function beginRepoMutation(): void {
+    uiMutationPending = true;
+    updateCommitPanelState();
+  }
+
+  function applyTabUI(): void {
+    const tabCommitBtn = document.getElementById('tab-commit');
+    const tabStashBtn = document.getElementById('tab-stash');
+    const panelCommit = document.getElementById('tab-panel-commit');
+    const panelStash = document.getElementById('tab-panel-stash');
+    const isCommit = activeTab === 'commit';
+
+    tabCommitBtn?.classList.toggle('tab-strip__tab--active', isCommit);
+    tabStashBtn?.classList.toggle('tab-strip__tab--active', !isCommit);
+    tabCommitBtn?.setAttribute('aria-selected', String(isCommit));
+    tabStashBtn?.setAttribute('aria-selected', String(!isCommit));
+
+    if (panelCommit) {
+      panelCommit.hidden = !isCommit;
+      panelCommit.classList.toggle('tab-panel--active', isCommit);
+    }
+    if (panelStash) {
+      panelStash.hidden = isCommit;
+      panelStash.classList.toggle('tab-panel--active', !isCommit);
+    }
   }
 
   function updateStashPanelState(): void {
-    const panel = document.getElementById('stash-panel');
     const refresh = document.getElementById('stash-refresh') as HTMLButtonElement | null;
     const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
     const hasRepo = !!root;
-    if (panel) {
-      panel.hidden = !(lastGitOk && hasRepo);
-    }
-    const busy = stashBusy || committing || pushing;
+    const busy = stashBusy || committing || pushing || uiMutationPending;
     if (refresh) {
       refresh.disabled = busy || !hasRepo || !lastGitOk;
     }
     for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('.stash-list__action'))) {
       btn.disabled = busy;
     }
+  }
+
+  function updateCommitPanelState(): void {
+    const workspace = document.getElementById('workspace');
+    if (workspace) {
+      workspace.hidden = !lastGitOk;
+    }
+    if (textarea && commitBtn) {
+      const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
+      const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
+      const hasRepo = !!root;
+      const blocked = conflictCount > 0;
+      const busy = committing || pushing || stashBusy || uiMutationPending;
+      commitBtn.disabled = busy || !hasRepo || blocked;
+      textarea.disabled = !lastGitOk || !hasRepo;
+      if (amendCb) {
+        amendCb.disabled = !lastGitOk || !hasRepo;
+      }
+      if (commitAndPushBtn) {
+        commitAndPushBtn.disabled = busy || !hasRepo || blocked;
+      }
+      if (pushFwlBtn) {
+        pushFwlBtn.disabled = busy || !hasRepo || blocked;
+      }
+    }
+    applyCommitButtonLabels();
+    updateStashPanelState();
+  }
+
+  function setTab(tab: 'commit' | 'stash', persist: boolean): void {
+    if (tab !== 'commit' && tab !== 'stash') {
+      return;
+    }
+    const prevTab = activeTab;
+    activeTab = tab;
+    applyTabUI();
+    if (persist && prevTab !== tab) {
+      const prevState = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
+      vscodeApi.setState({ ...prevState, commitDockTab: tab });
+    }
+    if (tab === 'stash' && prevTab !== tab) {
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestStashList' });
+    }
+    updateCommitPanelState();
+  }
+
+  for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('.tab-strip__tab[data-tab]'))) {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tab;
+      if (t === 'commit' || t === 'stash') {
+        setTab(t, true);
+      }
+    });
+  }
+
+  applyTabUI();
+  if (activeTab === 'stash') {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestStashList' });
   }
 
   const persistCommitUi = (): void => {
@@ -120,10 +220,38 @@ function main(): void {
       commitHint.hidden = true;
     }
     committing = true;
+    setActionStatus('Committing…', 'info');
     updateCommitPanelState();
     vscodeApi.postMessage({
       protocolVersion: PROTOCOL_VERSION,
       type: 'commit',
+      payload: { message: textarea.value, amend },
+    });
+  };
+
+  const submitCommitAndPush = (): void => {
+    if (!textarea || !commitAndPushBtn || commitAndPushBtn.disabled || committing || pushing || stashBusy) {
+      return;
+    }
+    const amend = amendCb?.checked ?? false;
+    const trimmed = textarea.value.trim();
+    if (!amend && !trimmed.length) {
+      if (commitHint) {
+        commitHint.hidden = false;
+        commitHint.textContent = 'Enter a commit message.';
+      }
+      return;
+    }
+    if (commitHint) {
+      commitHint.hidden = true;
+    }
+    committing = true;
+    pendingCommitThenPush = true;
+    setActionStatus('Committing and pushing…', 'info');
+    updateCommitPanelState();
+    vscodeApi.postMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'commitAndPush',
       payload: { message: textarea.value, amend },
     });
   };
@@ -149,28 +277,34 @@ function main(): void {
     if (amendCb) {
       amendCb.addEventListener('change', () => {
         persistCommitUi();
+        applyCommitButtonLabels();
+        const amendHead = document.querySelector('[data-commit-dock-group="amend-head"]');
+        if (amendHead instanceof HTMLDetailsElement) {
+          amendHead.open = amendCb.checked;
+        }
         if (amendCb.checked) {
           vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestHeadCommitMessage' });
+        }
+        if (lastSnapshot) {
+          renderRepoSnapshot(vscodeApi, lastSnapshot, { beginRepoMutation, setActionStatus });
         }
       });
       if (amendCb.checked) {
         vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestHeadCommitMessage' });
       }
     }
-    if (pushBtn && pushFwlBtn) {
-      pushBtn.addEventListener('click', () => {
-        if (pushing || committing || stashBusy) {
-          return;
-        }
-        pushing = true;
-        updateCommitPanelState();
-        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'push', payload: {} });
+    if (commitAndPushBtn) {
+      commitAndPushBtn.addEventListener('click', () => {
+        submitCommitAndPush();
       });
+    }
+    if (pushFwlBtn) {
       pushFwlBtn.addEventListener('click', () => {
         if (pushing || committing || stashBusy) {
           return;
         }
         pushing = true;
+        setActionStatus('Pushing…', 'info');
         updateCommitPanelState();
         vscodeApi.postMessage({
           protocolVersion: PROTOCOL_VERSION,
@@ -179,6 +313,7 @@ function main(): void {
         });
       });
     }
+    applyCommitButtonLabels();
   }
 
   function renderStashRows(entries: readonly StashSnapshotEntry[]): void {
@@ -208,7 +343,7 @@ function main(): void {
       const mk = (label: string, action: string): HTMLButtonElement => {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'selection-toolbar__btn stash-list__action';
+        b.className = 'stash-list__btn stash-list__action';
         b.textContent = label;
         b.dataset.stashAction = action;
         b.dataset.stashIndex = String(e.index);
@@ -295,7 +430,8 @@ function main(): void {
     }
     if (msg.type === 'repoSnapshot') {
       lastSnapshot = msg.payload;
-      renderRepoSnapshot(vscodeApi, msg.payload);
+      uiMutationPending = false;
+      renderRepoSnapshot(vscodeApi, msg.payload, { beginRepoMutation, setActionStatus });
       updateCommitPanelState();
     }
     if (msg.type === 'headCommitMessage') {
@@ -314,6 +450,17 @@ function main(): void {
     }
     if (msg.type === 'commitResult') {
       committing = false;
+      let enteringPushPhase = false;
+      if (pendingCommitThenPush) {
+        if (msg.payload.ok) {
+          pushing = true;
+          enteringPushPhase = true;
+          setActionStatus('Pushing…', 'info');
+        } else {
+          pendingCommitThenPush = false;
+        }
+      }
+
       if (msg.payload.ok) {
         if (textarea) {
           textarea.value = '';
@@ -324,20 +471,33 @@ function main(): void {
           commitHint.hidden = true;
           commitHint.textContent = '';
         }
-      } else if (commitHint) {
-        commitHint.hidden = false;
-        commitHint.textContent = msg.payload.detail ?? 'Commit failed.';
+        if (!enteringPushPhase) {
+          setActionStatus(amendCb?.checked ? 'Amend completed.' : 'Committed.', 'success');
+        }
+      } else {
+        if (commitHint) {
+          commitHint.hidden = false;
+          commitHint.textContent = msg.payload.detail ?? 'Commit failed.';
+        }
+        setActionStatus(msg.payload.detail ?? 'Commit failed.', 'error');
       }
       updateCommitPanelState();
     }
     if (msg.type === 'pushResult') {
       pushing = false;
-      if (!msg.payload.ok && commitHint) {
-        commitHint.hidden = false;
-        commitHint.textContent = msg.payload.detail ?? 'Push failed.';
-      } else if (msg.payload.ok && commitHint) {
-        commitHint.hidden = true;
-        commitHint.textContent = '';
+      pendingCommitThenPush = false;
+      if (!msg.payload.ok) {
+        if (commitHint) {
+          commitHint.hidden = false;
+          commitHint.textContent = msg.payload.detail ?? 'Push failed.';
+        }
+        setActionStatus(msg.payload.detail ?? 'Push failed.', 'error');
+      } else {
+        if (commitHint) {
+          commitHint.hidden = true;
+          commitHint.textContent = '';
+        }
+        setActionStatus('Push completed.', 'success');
       }
       updateCommitPanelState();
     }
@@ -360,9 +520,11 @@ function main(): void {
         if (!msg.payload.ok && msg.payload.detail) {
           stashHint.hidden = false;
           stashHint.textContent = msg.payload.detail;
+          setActionStatus(msg.payload.detail, 'error');
         } else if (msg.payload.ok) {
           stashHint.hidden = true;
           stashHint.textContent = '';
+          setActionStatus('Stash operation completed.', 'success');
         }
       }
       updateCommitPanelState();
@@ -370,56 +532,131 @@ function main(): void {
   });
 }
 
-function wireSelectionToolbar(
+function firstSelectedPath(snapshot: RepoSnapshot): string | undefined {
+  for (const g of snapshot.groups) {
+    if (g.id === 'conflicted') {
+      continue;
+    }
+    for (const f of g.files) {
+      if (f.selected) {
+        return f.path;
+      }
+    }
+  }
+  return undefined;
+}
+
+function attachOpenDiffOnRowClick(
+  li: HTMLLIElement,
+  fsPath: string,
+  vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
+): void {
+  li.classList.add('file-list__row--clickable');
+  if (!li.title) {
+    li.title = 'Open diff for this file';
+  }
+  li.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.closest('input.row-checkbox')) {
+      return;
+    }
+    vscodeApi.postMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'openDiff',
+      payload: { path: fsPath },
+    });
+  });
+}
+
+function createToolbarIconButton(title: string, codicon: string, onClick: () => void): HTMLButtonElement {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'changes-toolbar__iconbtn';
+  b.title = title;
+  b.setAttribute('aria-label', title);
+  const icon = document.createElement('span');
+  icon.className = `codicon ${codicon}`;
+  icon.setAttribute('aria-hidden', 'true');
+  icon.title = title;
+  b.appendChild(icon);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function appendToolbarSeparator(toolbar: HTMLElement): void {
+  const sep = document.createElement('span');
+  sep.className = 'changes-toolbar__sep';
+  sep.setAttribute('aria-hidden', 'true');
+  toolbar.appendChild(sep);
+}
+
+function wireChangesToolbar(
   vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
   toolbar: HTMLElement,
+  snapshot: RepoSnapshot,
+  beginRepoMutation: () => void,
+  setStatus: (text: string, kind: 'info' | 'error' | 'success') => void,
 ): void {
   toolbar.replaceChildren();
 
-  const selectAll = document.createElement('button');
-  selectAll.type = 'button';
-  selectAll.className = 'selection-toolbar__btn';
-  selectAll.textContent = 'Select all';
-  selectAll.addEventListener('click', () => {
-    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'selectAll' });
-  });
+  toolbar.appendChild(
+    createToolbarIconButton('Refresh git status', 'codicon-sync', () => {
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'refreshView' });
+    }),
+  );
 
-  const deselectAll = document.createElement('button');
-  deselectAll.type = 'button';
-  deselectAll.className = 'selection-toolbar__btn';
-  deselectAll.textContent = 'Deselect all';
-  deselectAll.addEventListener('click', () => {
-    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'deselectAll' });
-  });
+  toolbar.appendChild(
+    createToolbarIconButton('Open diff for selected file', 'codicon-git-compare', () => {
+      const p = firstSelectedPath(snapshot);
+      if (!p) {
+        setStatus('Check a file or click its row to open a diff.', 'error');
+        return;
+      }
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'openDiff', payload: { path: p } });
+    }),
+  );
 
-  const stage = document.createElement('button');
-  stage.type = 'button';
-  stage.className = 'selection-toolbar__btn';
-  stage.textContent = 'Stage';
-  stage.title = 'Stage selected changes and untracked files';
-  stage.addEventListener('click', () => {
-    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stageSelected' });
-  });
+  toolbar.appendChild(
+    createToolbarIconButton('Stash all changes (including untracked)', 'codicon-git-stash', () => {
+      beginRepoMutation();
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'quickStash' });
+    }),
+  );
 
-  const unstage = document.createElement('button');
-  unstage.type = 'button';
-  unstage.className = 'selection-toolbar__btn';
-  unstage.textContent = 'Unstage';
-  unstage.title = 'Remove selected files from the index';
-  unstage.addEventListener('click', () => {
-    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'unstageSelected' });
-  });
+  appendToolbarSeparator(toolbar);
 
-  const discard = document.createElement('button');
-  discard.type = 'button';
-  discard.className = 'selection-toolbar__btn selection-toolbar__btn--danger';
-  discard.textContent = 'Discard';
-  discard.title = 'Delete selected untracked files and revert working tree changes';
-  discard.addEventListener('click', () => {
-    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'discardSelected' });
-  });
+  toolbar.appendChild(
+    createToolbarIconButton('Select all files', 'codicon-list-selection', () => {
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'selectAll' });
+    }),
+  );
 
-  toolbar.append(selectAll, deselectAll, stage, unstage, discard);
+  toolbar.appendChild(
+    createToolbarIconButton('Deselect all files', 'codicon-clear-all', () => {
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'deselectAll' });
+    }),
+  );
+
+  toolbar.appendChild(
+    createToolbarIconButton('Stage selected files', 'codicon-cloud-upload', () => {
+      beginRepoMutation();
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stageSelected' });
+    }),
+  );
+
+  toolbar.appendChild(
+    createToolbarIconButton('Unstage selected files', 'codicon-cloud-download', () => {
+      beginRepoMutation();
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'unstageSelected' });
+    }),
+  );
+
+  toolbar.appendChild(
+    createToolbarIconButton('Discard selected changes', 'codicon-discard', () => {
+      beginRepoMutation();
+      vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'discardSelected' });
+    }),
+  );
 }
 
 function wireChangesHotkeys(
@@ -439,6 +676,10 @@ function wireChangesHotkeys(
 function renderRepoSnapshot(
   vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
   snapshot: RepoSnapshot,
+  toolbarDeps: {
+    beginRepoMutation: () => void;
+    setActionStatus: (text: string, kind: 'info' | 'error' | 'success') => void;
+  },
 ): void {
   const changes = document.getElementById('changes');
   const repoLine = document.getElementById('repo');
@@ -455,30 +696,39 @@ function renderRepoSnapshot(
   }
 
   const toolbar = document.createElement('div');
-  toolbar.className = 'selection-toolbar';
-  wireSelectionToolbar(vscodeApi, toolbar);
+  toolbar.className = 'selection-toolbar changes-toolbar';
+  wireChangesToolbar(vscodeApi, toolbar, snapshot, toolbarDeps.beginRepoMutation, toolbarDeps.setActionStatus);
   changes.appendChild(toolbar);
+
+  const persisted = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
 
   if (repoLine) {
     if (snapshot.rootName) {
       repoLine.hidden = false;
-      repoLine.textContent = `Active repository: ${snapshot.rootName}`;
+      repoLine.textContent = snapshot.rootName;
+      if (snapshot.rootPath) {
+        repoLine.title = snapshot.rootPath;
+      } else {
+        repoLine.removeAttribute('title');
+      }
     } else {
       repoLine.hidden = true;
       repoLine.textContent = '';
+      repoLine.removeAttribute('title');
     }
   }
 
-  const persisted = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
-
   for (const group of snapshot.groups) {
+    const count = group.files.length;
+    if (group.id === 'conflicted' && count === 0) {
+      continue;
+    }
+
     const details = document.createElement('details');
     details.className = `changes__group changes__group--${group.id}`;
 
     const summary = document.createElement('summary');
     summary.className = 'changes__summary';
-
-    const count = group.files.length;
 
     if (group.id === 'conflicted') {
       summary.textContent = `${group.title} (${count})`;
@@ -569,11 +819,60 @@ function renderRepoSnapshot(
         meta.textContent = file.statusLabel;
 
         li.append(icon, name, meta);
+        attachOpenDiffOnRowClick(li, file.path, vscodeApi);
         list.appendChild(li);
       }
     }
 
     details.appendChild(list);
+    changes.appendChild(details);
+  }
+
+  const amendCbEl = document.getElementById('commit-amend') as HTMLInputElement | null;
+  const amendChecked = amendCbEl?.checked ?? false;
+  if (amendChecked && snapshot.amendHeadFiles?.length) {
+    const details = document.createElement('details');
+    details.dataset.commitDockGroup = 'amend-head';
+    details.className = 'changes__group changes__group--amend-head';
+    const summary = document.createElement('summary');
+    summary.className = 'changes__summary';
+    const row = document.createElement('span');
+    row.className = 'changes__summary-row changes__summary-row--text-only';
+    const label = document.createElement('span');
+    label.className = 'changes__summary-label';
+    label.textContent = `Included in last commit (${snapshot.amendHeadFiles.length})`;
+    row.appendChild(label);
+    summary.appendChild(row);
+    details.appendChild(summary);
+
+    const list = document.createElement('ul');
+    list.className = 'file-list file-list--readonly';
+    for (const f of snapshot.amendHeadFiles) {
+      const li = document.createElement('li');
+      li.className = 'file-list__row file-list__row--amend-head';
+      const name = document.createElement('span');
+      name.className = 'file-list__name';
+      name.textContent = f.relPath;
+      li.appendChild(name);
+      attachOpenDiffOnRowClick(li, f.path, vscodeApi);
+      list.appendChild(li);
+    }
+    details.appendChild(list);
+
+    const persistedOpen = persisted.detailsOpen?.['amendHead'];
+    details.open = persistedOpen !== undefined ? persistedOpen : true;
+
+    details.addEventListener('toggle', () => {
+      const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
+      vscodeApi.setState({
+        ...prev,
+        detailsOpen: {
+          ...(prev.detailsOpen ?? {}),
+          amendHead: details.open,
+        },
+      });
+    });
+
     changes.appendChild(details);
   }
 }
