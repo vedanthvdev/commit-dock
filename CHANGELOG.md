@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.8] - 2026-05-13
+
+### Changed
+
+- [#26](https://github.com/vedanthvdev/commit-dock/pull/26): COMMITDOCK-28: Document Marketplace /items 404 vs vsce show
+
 ## [0.9.6] - 2026-05-13
 
 ### Chore
