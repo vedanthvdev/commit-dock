@@ -50,6 +50,7 @@
     "onCommand:commitDock.fetchAndRefresh",
     "onCommand:commitDock.compareWorkingTreeWithRef",
     "onCommand:commitDock.copyActiveEditorRelativePath",
+    "onCommand:commitDock.revealPrimaryRepoInOS",
     "onCommand:commitDock.showRecentCommitGraph"
   ],
   "extensionDependencies": [
@@ -149,6 +150,11 @@
       {
         "command": "commitDock.copyActiveEditorRelativePath",
         "title": "Copy Active Editor Relative Path",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.revealPrimaryRepoInOS",
+        "title": "Reveal Primary Repository in OS",
         "category": "Commit Dock"
       },
       {
