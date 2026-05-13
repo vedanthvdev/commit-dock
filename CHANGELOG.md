@@ -13,7 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 8: Polish, settings, shortcuts.
+- Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
+
+## [0.9.0] - 2026-05-13
+
+### Added
+
+- **Phase 8 — Polish:** **Settings** — `commitDock.snapshotDebounceMs` (0–2000 ms, default 150) for Git snapshot refresh debouncing, and `commitDock.confirmBeforeDiscard` (default on) to skip or require the discard confirmation modal.
+- **Commands** use the **Commit Dock** category in the Command Palette; **default keybinding** **Ctrl+Shift+Alt+1** (macOS **Cmd+Shift+Alt+1**) opens the Commit Dock sidebar.
+- **README:** settings reference, command list, default shortcut, **limitations** (single active repo, webview vs SCM, stash list `git` on `PATH`), and **Cursor** smoke-test note.
 
 ## [0.8.0] - 2026-05-13
 
@@ -96,7 +104,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...v0.6.0

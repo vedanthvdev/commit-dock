@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { getConfirmBeforeDiscard, getSnapshotDebounceMs } from '../config';
 import { getGitApi } from '../git/api';
 import {
   buildRepoSnapshot,
@@ -496,14 +497,16 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     if (!clean.length && !restore.length) {
       return;
     }
-    const total = clean.length + restore.length;
-    const confirm = await vscode.window.showWarningMessage(
-      `Discard ${total} selected file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
-      { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
-      'Discard',
-    );
-    if (confirm !== 'Discard') {
-      return;
+    if (getConfirmBeforeDiscard()) {
+      const total = clean.length + restore.length;
+      const confirm = await vscode.window.showWarningMessage(
+        `Discard ${total} selected file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
+        { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
+        'Discard',
+      );
+      if (confirm !== 'Discard') {
+        return;
+      }
     }
     try {
       if (clean.length) {
@@ -831,14 +834,15 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._scheduleSnapshot(repo, 0);
   }
 
-  private _scheduleSnapshot(repo: Repository, delayMs = 150): void {
+  private _scheduleSnapshot(repo: Repository, delayMs?: number): void {
+    const ms = delayMs === 0 ? 0 : (delayMs ?? getSnapshotDebounceMs());
     if (this._debounce) {
       clearTimeout(this._debounce);
     }
     this._debounce = setTimeout(() => {
       this._debounce = undefined;
       this._postSnapshot(repo);
-    }, delayMs);
+    }, ms);
   }
 
   private _postSnapshotImmediate(repo: Repository): void {

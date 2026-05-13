@@ -1,0 +1,20 @@
+import * as vscode from 'vscode';
+
+export const COMMIT_DOCK_CONFIGURATION_SECTION = 'commitDock';
+
+/** Debounce for Git `onDidChange` snapshot refresh (ms). */
+export function getSnapshotDebounceMs(): number {
+  const raw = vscode.workspace
+    .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
+    .get<number>('snapshotDebounceMs', 150);
+  const n = typeof raw === 'number' && Number.isFinite(raw) ? Math.floor(raw) : 150;
+  return Math.max(0, Math.min(2000, n));
+}
+
+/** When false, discard runs without a confirmation modal. */
+export function getConfirmBeforeDiscard(): boolean {
+  return (
+    vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION).get<boolean>('confirmBeforeDiscard', true) !==
+    false
+  );
+}
