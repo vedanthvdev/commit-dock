@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -41,7 +41,8 @@ export type HostToWebviewMessage =
       protocolVersion: typeof PROTOCOL_VERSION;
       type: 'headCommitMessage';
       payload: { ok: boolean; message?: string; detail?: string };
-    };
+    }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'pushResult'; payload: { ok: boolean; detail?: string } };
 
 export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'ready' }
@@ -54,7 +55,8 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'unstageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string; amend?: boolean } }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'push'; payload: { forceWithLease?: boolean } };
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
@@ -84,6 +86,15 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
 
   if (msg.type === 'requestHeadCommitMessage') {
     return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'push') {
+    const payload = (msg as { payload?: unknown }).payload;
+    let forceWithLease = false;
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      forceWithLease = (payload as { forceWithLease?: unknown }).forceWithLease === true;
+    }
+    return { protocolVersion: PROTOCOL_VERSION, type: 'push', payload: { forceWithLease } };
   }
 
   if (msg.type === 'commit') {

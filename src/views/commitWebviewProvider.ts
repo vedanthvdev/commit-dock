@@ -16,7 +16,7 @@ import {
   pickPrimaryRepository,
 } from '../git/snapshot';
 import { PROTOCOL_VERSION, parseWebviewMessage, type HostToWebviewMessage } from '../protocol';
-import type { API, Repository } from '../git/git-api';
+import { ForcePushMode, type API, type Repository } from '../git/git-api';
 
 export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'commitDock.commitView';
@@ -69,6 +69,16 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         void this.discardSelected();
       }),
     );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.push', () => {
+        void this.push();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.pushForceWithLease', () => {
+        void this.pushForceWithLease();
+      }),
+    );
   }
 
   resolveWebviewView(
@@ -107,6 +117,9 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           }
           if (msg.type === 'requestHeadCommitMessage') {
             this._postHeadCommitMessage(false, undefined, 'No Git repository is active.');
+          }
+          if (msg.type === 'push') {
+            this._postPushResult(false, 'No Git repository is active.');
           }
           return;
         }
@@ -185,6 +198,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           await this._sendHeadCommitMessage(repo);
           return;
         }
+
+        if (msg.type === 'push') {
+          await this._gitPush(repo, msg.payload.forceWithLease === true);
+          return;
+        }
       }),
     );
 
@@ -260,6 +278,24 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     }
     const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
     void this._discardSelected(repo, set);
+  }
+
+  push(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: no repository is active.');
+      return;
+    }
+    void this._gitPush(repo, false);
+  }
+
+  pushForceWithLease(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: no repository is active.');
+      return;
+    }
+    void this._gitPush(repo, true);
   }
 
   private _showGitError(operation: string, err: unknown): void {
@@ -431,6 +467,53 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
     this._postCommitResult(true);
+    this._postSnapshotImmediate(repo);
+  }
+
+  private _postPushResult(ok: boolean, detail?: string): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'pushResult',
+      payload: { ok, detail },
+    };
+    void view.webview.postMessage(msg);
+  }
+
+  private async _gitPush(repo: Repository, forceWithLease: boolean): Promise<void> {
+    if (forceWithLease) {
+      const confirm = await vscode.window.showWarningMessage(
+        'Force push with lease to the configured upstream?',
+        {
+          modal: true,
+          detail:
+            'The push is rejected if the remote moved on since your last fetch. This can still rewrite remote history — confirm only if you intend to update the remote branch.',
+        },
+        'Force push with lease',
+      );
+      if (confirm !== 'Force push with lease') {
+        this._postPushResult(false, 'Cancelled.');
+        return;
+      }
+    }
+    try {
+      if (forceWithLease) {
+        await repo.push(undefined, undefined, false, ForcePushMode.ForceWithLease);
+      } else {
+        await repo.push();
+      }
+    } catch (err) {
+      this._showGitError('Push', err);
+      this._postPushResult(false, err instanceof Error ? err.message : String(err));
+      return;
+    }
+    void vscode.window.showInformationMessage(
+      forceWithLease ? 'Commit Dock: force-with-lease push completed.' : 'Commit Dock: push completed.',
+    );
+    this._postPushResult(true);
     this._postSnapshotImmediate(repo);
   }
 
@@ -678,6 +761,10 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         </div>
         <div class="commit-panel__row">
           <button type="button" id="commit-submit" class="selection-toolbar__btn selection-toolbar__btn--primary">Commit</button>
+        </div>
+        <div class="commit-panel__row commit-panel__row--push">
+          <button type="button" id="commit-push" class="selection-toolbar__btn">Push</button>
+          <button type="button" id="commit-push-fwl" class="selection-toolbar__btn selection-toolbar__btn--danger">Push (force-with-lease)</button>
         </div>
         <p id="commit-hint" class="hint commit-panel__hint" hidden></p>
       </section>

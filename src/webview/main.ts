@@ -28,11 +28,14 @@ function main(): void {
   let lastGitOk = false;
   let lastSnapshot: RepoSnapshot | undefined;
   let committing = false;
+  let pushing = false;
 
   const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
   const commitBtn = document.getElementById('commit-submit') as HTMLButtonElement | null;
   const commitHint = document.getElementById('commit-hint') as HTMLParagraphElement | null;
   const amendCb = document.getElementById('commit-amend') as HTMLInputElement | null;
+  const pushBtn = document.getElementById('commit-push') as HTMLButtonElement | null;
+  const pushFwlBtn = document.getElementById('commit-push-fwl') as HTMLButtonElement | null;
 
   function updateCommitPanelState(): void {
     const panel = document.getElementById('commit-panel');
@@ -46,10 +49,17 @@ function main(): void {
     const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
     const hasRepo = !!root;
     const blocked = conflictCount > 0;
-    commitBtn.disabled = committing || !hasRepo || blocked;
+    const busy = committing || pushing;
+    commitBtn.disabled = busy || !hasRepo || blocked;
     textarea.disabled = !lastGitOk || !hasRepo;
     if (amendCb) {
       amendCb.disabled = !lastGitOk || !hasRepo;
+    }
+    if (pushBtn) {
+      pushBtn.disabled = busy || !hasRepo || blocked;
+    }
+    if (pushFwlBtn) {
+      pushFwlBtn.disabled = busy || !hasRepo || blocked;
     }
   }
 
@@ -74,7 +84,7 @@ function main(): void {
   }
 
   function submitCommit(): void {
-    if (!textarea || !commitBtn || commitBtn.disabled || committing) {
+    if (!textarea || !commitBtn || commitBtn.disabled || committing || pushing) {
       return;
     }
     const amend = amendCb?.checked ?? false;
@@ -126,6 +136,28 @@ function main(): void {
       if (amendCb.checked) {
         vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestHeadCommitMessage' });
       }
+    }
+    if (pushBtn && pushFwlBtn) {
+      pushBtn.addEventListener('click', () => {
+        if (pushing || committing) {
+          return;
+        }
+        pushing = true;
+        updateCommitPanelState();
+        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'push', payload: {} });
+      });
+      pushFwlBtn.addEventListener('click', () => {
+        if (pushing || committing) {
+          return;
+        }
+        pushing = true;
+        updateCommitPanelState();
+        vscodeApi.postMessage({
+          protocolVersion: PROTOCOL_VERSION,
+          type: 'push',
+          payload: { forceWithLease: true },
+        });
+      });
     }
   }
 
@@ -184,6 +216,17 @@ function main(): void {
       } else if (commitHint) {
         commitHint.hidden = false;
         commitHint.textContent = msg.payload.detail ?? 'Commit failed.';
+      }
+      updateCommitPanelState();
+    }
+    if (msg.type === 'pushResult') {
+      pushing = false;
+      if (!msg.payload.ok && commitHint) {
+        commitHint.hidden = false;
+        commitHint.textContent = msg.payload.detail ?? 'Push failed.';
+      } else if (msg.payload.ok && commitHint) {
+        commitHint.hidden = true;
+        commitHint.textContent = '';
       }
       updateCommitPanelState();
     }

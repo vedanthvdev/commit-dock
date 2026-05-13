@@ -86,6 +86,10 @@ body {
   align-items: flex-start;
 }
 
+.commit-panel__row--push {
+  margin-top: 2px;
+}
+
 .commit-panel__check {
   display: inline-flex;
   align-items: flex-start;
