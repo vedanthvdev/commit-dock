@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "publisher": "vedanthvdev",
   "license": "MIT",
   "repository": {
@@ -62,37 +62,70 @@
     "commands": [
       {
         "command": "commitDock.showCommitView",
-        "title": "Commit Dock: Focus Commit View"
+        "title": "Focus Commit View",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.selectAll",
-        "title": "Commit Dock: Select All Changes"
+        "title": "Select All Changes",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.deselectAll",
-        "title": "Commit Dock: Deselect All Changes"
+        "title": "Deselect All Changes",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.stageSelected",
-        "title": "Commit Dock: Stage Selected Changes"
+        "title": "Stage Selected Changes",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.unstageSelected",
-        "title": "Commit Dock: Unstage Selected Changes"
+        "title": "Unstage Selected Changes",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.discardSelected",
-        "title": "Commit Dock: Discard Selected Changes"
+        "title": "Discard Selected Changes",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.push",
-        "title": "Commit Dock: Push"
+        "title": "Push",
+        "category": "Commit Dock"
       },
       {
         "command": "commitDock.pushForceWithLease",
-        "title": "Commit Dock: Push (Force With Lease)"
+        "title": "Push (Force With Lease)",
+        "category": "Commit Dock"
       }
-    ]
+    ],
+    "keybindings": [
+      {
+        "command": "commitDock.showCommitView",
+        "key": "ctrl+shift+alt+1",
+        "mac": "cmd+shift+alt+1",
+        "linux": "ctrl+shift+alt+1"
+      }
+    ],
+    "configuration": {
+      "title": "Commit Dock",
+      "properties": {
+        "commitDock.snapshotDebounceMs": {
+          "type": "number",
+          "default": 150,
+          "minimum": 0,
+          "maximum": 2000,
+          "markdownDescription": "Milliseconds to wait after Git reports a change before rebuilding the change list. Lower feels snappier; higher reduces refresh churn."
+        },
+        "commitDock.confirmBeforeDiscard": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "When enabled, **Discard** asks for confirmation before deleting untracked files or reverting working tree files."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.config.mjs --production",
