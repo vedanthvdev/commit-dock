@@ -1,0 +1,81 @@
+{
+  "name": "commit-dock",
+  "displayName": "Commit Dock",
+  "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
+  "version": "0.1.1",
+  "publisher": "vedanthvdev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vedanthvdev/commit-dock.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vedanthvdev/commit-dock/issues"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "commit",
+    "scm",
+    "amend",
+    "stash"
+  ],
+  "activationEvents": [
+    "onView:commitDock.commitView",
+    "onCommand:commitDock.showCommitView"
+  ],
+  "extensionDependencies": [
+    "vscode.git"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "commit-dock",
+          "title": "Commit Dock",
+          "icon": "media/dock.svg"
+        }
+      ]
+    },
+    "views": {
+      "commit-dock": [
+        {
+          "type": "webview",
+          "id": "commitDock.commitView",
+          "name": "Commit"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "commitDock.showCommitView",
+        "title": "Commit Dock: Focus Commit View"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs --production",
+    "compile": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "lint": "eslint \"src/**/*.ts\"",
+    "vscode:prepublish": "npm run build",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vscode/codicons": "^0.0.36",
+    "@vscode/vsce": "^3.3.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^8.57.0",
+    "typescript": "^5.6.0"
+  }
+}
