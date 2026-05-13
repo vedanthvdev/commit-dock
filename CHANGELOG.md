@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
 - **Palette Git helpers:** checkout a local branch, create a branch from **HEAD**, and copy the full **HEAD** revision to the clipboard for the primary repository (fixed `git` / `execFile` argument lists).
+- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **14**) so the webview can hide **Commit and Push** without a reload.
+- **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
 
 ### Changed
 

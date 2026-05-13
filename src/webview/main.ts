@@ -106,6 +106,7 @@ function main(): void {
   let pushing = false;
   let stashBusy = false;
   let pendingCommitThenPush = false;
+  let showCommitAndPushBtn = true;
   let uiMutationPending = false;
 
   const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
@@ -116,6 +117,13 @@ function main(): void {
   const pushFwlBtn = document.getElementById('commit-push-fwl') as HTMLButtonElement | null;
   const tabPanelCommit = document.getElementById('tab-panel-commit');
   const commitFooterSash = document.getElementById('commit-footer-sash') as HTMLDivElement | null;
+
+  function applyCommitAndPushPreference(): void {
+    if (commitAndPushBtn) {
+      commitAndPushBtn.hidden = !showCommitAndPushBtn;
+    }
+  }
+  applyCommitAndPushPreference();
 
   const MIN_COMMIT_FOOTER_H = 152;
   const DEFAULT_COMMIT_FOOTER_H = 200;
@@ -330,7 +338,7 @@ function main(): void {
         amendCb.disabled = !lastGitOk || !hasRepo;
       }
       if (commitAndPushBtn) {
-        commitAndPushBtn.disabled = busy || !hasRepo || blocked;
+        commitAndPushBtn.disabled = busy || !hasRepo || blocked || commitAndPushBtn.hidden;
       }
       if (pushFwlBtn) {
         pushFwlBtn.disabled = busy || !hasRepo || blocked;
@@ -420,7 +428,7 @@ function main(): void {
   };
 
   const submitCommitAndPush = (): void => {
-    if (!textarea || !commitAndPushBtn || commitAndPushBtn.disabled || committing || pushing || stashBusy) {
+    if (!textarea || !commitAndPushBtn || commitAndPushBtn.hidden || commitAndPushBtn.disabled || committing || pushing || stashBusy) {
       return;
     }
     const amend = amendCb?.checked ?? false;
@@ -530,17 +538,22 @@ function main(): void {
       const actions = document.createElement('span');
       actions.className = 'stash-list__actions';
 
-      const mk = (label: string, action: string): HTMLButtonElement => {
+      const mk = (label: string, action: string, title: string): HTMLButtonElement => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'stash-list__btn stash-list__action';
         b.textContent = label;
+        b.title = title;
         b.dataset.stashAction = action;
         b.dataset.stashIndex = String(e.index);
         return b;
       };
 
-      actions.append(mk('Apply', 'apply'), mk('Pop', 'pop'), mk('Drop', 'drop'));
+      actions.append(
+        mk('Apply', 'apply', 'git stash apply (keeps the stash entry on the shelf)'),
+        mk('Pop', 'pop', 'git stash pop (apply and remove the stash entry)'),
+        mk('Drop', 'drop', 'git stash drop (remove without applying)'),
+      );
       li.append(desc, actions);
       ul.appendChild(li);
     }
@@ -617,6 +630,11 @@ function main(): void {
       if (status) {
         status.textContent = msg.payload.detail ?? (msg.payload.ok ? 'Git ready.' : 'No Git repository.');
       }
+    }
+    if (msg.type === 'uiPreferences') {
+      showCommitAndPushBtn = msg.payload.showCommitAndPush !== false;
+      applyCommitAndPushPreference();
+      updateCommitPanelState();
     }
     if (msg.type === 'repoSnapshot') {
       lastSnapshot = msg.payload;

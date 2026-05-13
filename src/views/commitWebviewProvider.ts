@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfirmBeforeDiscard, getShowActivityBarBadge, getSnapshotDebounceMs } from '../config';
+import { getConfirmBeforeDiscard, getShowActivityBarBadge, getShowCommitAndPushButton, getSnapshotDebounceMs } from '../config';
 import { getGitApi } from '../git/api';
 import { countWorkspaceChangePaths } from '../git/repo-change-model';
 import {
@@ -68,6 +68,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         }
         if (e.affectsConfiguration('commitDock')) {
           this._updateActivityBarBadge(this._currentRepo);
+          this._postUiPreferences();
         }
       }),
     );
@@ -874,6 +875,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       payload: { ok, detail },
     };
     void view.webview.postMessage(gitStatus);
+    this._postUiPreferences();
 
     await this._ensureRepoSubscription(api);
   }
@@ -1076,6 +1078,19 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     };
   }
 
+  private _postUiPreferences(): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'uiPreferences',
+      payload: { showCommitAndPush: getShowCommitAndPushButton() },
+    };
+    void view.webview.postMessage(msg);
+  }
+
   private _getHtmlForWebview(webview: vscode.Webview, nonce: string): string {
     const csp = [
       `default-src 'none'`,
@@ -1133,8 +1148,9 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           aria-selected="false"
           aria-controls="tab-panel-stash"
           data-tab="stash"
+          title="Git stash entries (shelf-style apply / pop / drop)"
         >
-          Stash
+          Shelf
         </button>
       </nav>
 
@@ -1189,7 +1205,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         <div id="tab-panel-stash" class="tab-panel" role="tabpanel" aria-labelledby="tab-stash" hidden>
           <section id="stash-panel" class="stash-panel stash-panel--tab">
             <div class="stash-toolbar">
-              <span class="stash-toolbar__title">Stashes</span>
+              <span class="stash-toolbar__title">Stash shelf</span>
               <button type="button" id="stash-refresh" class="toolbar-icon-btn" title="Refresh stash list" aria-label="Refresh stash list">
                 <span class="codicon codicon-sync" aria-hidden="true"></span>
               </button>

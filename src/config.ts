@@ -26,3 +26,11 @@ export function getShowActivityBarBadge(): boolean {
     .get<boolean>('showActivityBarBadge');
   return v !== false;
 }
+
+/** When false, hide the Commit and Push control in the webview (commit and push remain separate). */
+export function getShowCommitAndPushButton(): boolean {
+  const v = vscode.workspace
+    .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
+    .get<boolean>('showCommitAndPushButton');
+  return v !== false;
+}
