@@ -2,6 +2,9 @@
 # 1) Build and attach a VSIX to a GitHub Release (always, using GITHUB_TOKEN).
 # 2) Publish to the Visual Studio Marketplace only when VSCE_PAT is configured.
 #
+# Tags are usually created by auto-tag-on-master.yml when package.json version
+# changes on master. You can still push a tag manually.
+#
 # Previously the workflow failed before creating a GitHub Release when VSCE_PAT
 # was missing, which left the Releases page empty for new tags.
 #
