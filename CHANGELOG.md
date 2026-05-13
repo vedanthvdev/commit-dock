@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.10] - 2026-05-13
+
+### Changed
+
+- [#47](https://github.com/vedanthvdev/commit-dock/pull/47): COMMITDOCK-47: Merge-conflict banner + protocol 16
+
 ## [0.9.9] - 2026-05-13
 
 ### Changed
