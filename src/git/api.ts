@@ -47,28 +47,24 @@ export async function getGitApi(options?: GetGitApiOptions): Promise<API | undef
 
   await new Promise<void>((resolve) => {
     let finished = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    let sub: vscode.Disposable | undefined;
 
     const finish = () => {
       if (finished) {
         return;
       }
       finished = true;
-      if (timeout !== undefined) {
-        clearTimeout(timeout);
-      }
-      sub?.dispose();
+      clearTimeout(timeout);
+      sub.dispose();
       resolve();
     };
 
-    sub = api.onDidChangeState((s) => {
+    const sub = api.onDidChangeState((s) => {
       if (s === 'initialized') {
         finish();
       }
     });
 
-    timeout = setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (!silent) {
         void vscode.window.showWarningMessage(
           'Commit Dock: Git API is slow to initialize. Repository list may be empty until Git finishes loading.',

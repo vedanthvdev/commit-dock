@@ -3,14 +3,34 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getGitApi } from '../git/api';
+import { buildRepoSnapshot, emptyRepoSnapshot, pickPrimaryRepository } from '../git/snapshot';
 import { PROTOCOL_VERSION, parseWebviewMessage, type HostToWebviewMessage } from '../protocol';
+import type { API, Repository } from '../git/git-api';
 
 export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'commitDock.commitView';
 
   private _view?: vscode.WebviewView;
+  private readonly _repoDisposables: vscode.Disposable[] = [];
+  private _debounce?: ReturnType<typeof setTimeout>;
+  private _subscribedRepoRoot?: string;
+  private _didRegisterGlobalGitListeners = false;
 
-  constructor(private readonly _extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly _extensionUri: vscode.Uri,
+    private readonly _context: vscode.ExtensionContext,
+  ) {
+    this._context.subscriptions.push(
+      vscode.window.onDidChangeActiveTextEditor(() => {
+        void this._onGitContextMaybeChanged();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        void this._onGitContextMaybeChanged();
+      }),
+    );
+  }
 
   resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -50,10 +70,45 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
     webviewView.onDidDispose(() => {
       vscode.Disposable.from(...disposables).dispose();
+      this._clearRepoSubscriptions();
+      this._subscribedRepoRoot = undefined;
+      if (this._debounce) {
+        clearTimeout(this._debounce);
+        this._debounce = undefined;
+      }
       if (this._view === webviewView) {
         this._view = undefined;
       }
     });
+  }
+
+  private _registerGitWorkspaceListeners(api: API): void {
+    if (this._didRegisterGlobalGitListeners) {
+      return;
+    }
+    this._didRegisterGlobalGitListeners = true;
+    this._context.subscriptions.push(
+      api.onDidOpenRepository(() => {
+        void this._onGitContextMaybeChanged();
+      }),
+      api.onDidCloseRepository(() => {
+        void this._onGitContextMaybeChanged();
+      }),
+    );
+  }
+
+  private async _onGitContextMaybeChanged(): Promise<void> {
+    const api = await getGitApi({ silent: true });
+    if (!api) {
+      return;
+    }
+    const repo = pickPrimaryRepository(api);
+    const root = repo?.rootUri.fsPath;
+    if (root && this._subscribedRepoRoot && root !== this._subscribedRepoRoot) {
+      this._clearRepoSubscriptions();
+      this._subscribedRepoRoot = undefined;
+    }
+    await this._ensureRepoSubscription(api);
   }
 
   private async _pushInitialState(): Promise<void> {
@@ -92,6 +147,94 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       payload: { ok, detail },
     };
     void view.webview.postMessage(gitStatus);
+
+    await this._ensureRepoSubscription(api);
+  }
+
+  private _clearRepoSubscriptions(): void {
+    while (this._repoDisposables.length) {
+      const d = this._repoDisposables.pop();
+      d?.dispose();
+    }
+  }
+
+  private async _ensureRepoSubscription(api: API | undefined): Promise<void> {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+
+    if (!api) {
+      this._clearRepoSubscriptions();
+      this._subscribedRepoRoot = undefined;
+      const empty = emptyRepoSnapshot();
+      const snap: HostToWebviewMessage = {
+        protocolVersion: PROTOCOL_VERSION,
+        type: 'repoSnapshot',
+        payload: empty,
+      };
+      void view.webview.postMessage(snap);
+      return;
+    }
+
+    this._registerGitWorkspaceListeners(api);
+
+    const repo = pickPrimaryRepository(api);
+    if (!repo) {
+      this._clearRepoSubscriptions();
+      this._subscribedRepoRoot = undefined;
+      const empty = emptyRepoSnapshot();
+      const snap: HostToWebviewMessage = {
+        protocolVersion: PROTOCOL_VERSION,
+        type: 'repoSnapshot',
+        payload: empty,
+      };
+      void view.webview.postMessage(snap);
+      return;
+    }
+
+    const root = repo.rootUri.fsPath;
+    if (this._subscribedRepoRoot !== root) {
+      this._clearRepoSubscriptions();
+      this._subscribedRepoRoot = root;
+
+      this._repoDisposables.push(
+        repo.state.onDidChange(() => {
+          this._scheduleSnapshot(repo);
+        }),
+      );
+      this._repoDisposables.push(
+        repo.onDidCommit(() => {
+          this._scheduleSnapshot(repo);
+        }),
+      );
+    }
+
+    this._scheduleSnapshot(repo, 0);
+  }
+
+  private _scheduleSnapshot(repo: Repository, delayMs = 150): void {
+    if (this._debounce) {
+      clearTimeout(this._debounce);
+    }
+    this._debounce = setTimeout(() => {
+      this._debounce = undefined;
+      this._postSnapshot(repo);
+    }, delayMs);
+  }
+
+  private _postSnapshot(repo: Repository): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const payload = buildRepoSnapshot(repo);
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'repoSnapshot',
+      payload,
+    };
+    void view.webview.postMessage(msg);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, nonce: string): string {
@@ -128,7 +271,8 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     </header>
     <main class="main">
       <p id="status" class="status">Loading…</p>
-      <p class="hint">Phase 0 scaffold — file list, commit, amend, stash, and push will land in subsequent releases per CHANGELOG.</p>
+      <p id="repo" class="repo" hidden></p>
+      <section id="changes" class="changes" hidden></section>
     </main>
   </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>

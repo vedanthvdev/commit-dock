@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 1: Repo snapshot in webview (staged / unstaged / untracked / conflicted).
 - Phase 2: Selection + select all.
 - Phase 3: Stage / unstage / discard from webview.
 - Phase 4: Commit message + plain commit (+ auto-stage selected).
@@ -17,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.2.0] - 2026-05-13
+
+### Added
+
+- **Phase 1 — Repo snapshot in webview:** host builds a `repoSnapshot` from the primary Git repository (`vscode.git`) using `mergeChanges`, `indexChanges`, `workingTreeChanges`, and `untrackedChanges`.
+- **Debounced refresh** (~150ms) on `repository.state.onDidChange`, plus updates on `repository.onDidCommit`, `onDidOpenRepository`, `onDidCloseRepository`, workspace folder changes, and active editor changes.
+- **Webview UI:** collapsible groups (merge conflicts, staged, changes, untracked) with VS Code theme colors and codicons; `<details>` open/closed state persisted via `vscode.getState` / `setState`.
+- **Protocol** bumped to **v2** for `repoSnapshot` messages.
 
 ## [0.1.1] - 2026-05-13
 
@@ -47,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vedanthvdev/commit-dock/releases/tag/v0.1.0

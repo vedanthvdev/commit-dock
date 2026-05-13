@@ -2,7 +2,7 @@
  * Subset of the built-in Git extension API (vscode.git).
  * Full reference: https://github.com/microsoft/vscode/blob/main/extensions/git/src/api/git.d.ts
  */
-import type { CancellationToken, Event, Uri } from 'vscode';
+import type { Event, Uri } from 'vscode';
 
 export const enum ForcePushMode {
   Force = 0,

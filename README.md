@@ -2,7 +2,7 @@
 
 **Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
 
-> **Status:** current release is **`v0.1.1`** (MR review fixes on top of the Phase 0 scaffold). Feature milestones follow [CHANGELOG.md](CHANGELOG.md).
+> **Status:** current release is **`v0.2.0`** (Phase 1: live change list in the webview). Next: selection + staging. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 

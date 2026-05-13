@@ -40,3 +40,82 @@ body {
   opacity: 0.75;
   line-height: 1.4;
 }
+
+.repo {
+  margin: 0;
+  opacity: 0.8;
+  font-size: calc(var(--vscode-font-size) * 0.95);
+}
+
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.changes__summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+}
+
+.file-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0 0 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.file-list__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+.file-list__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-list__meta {
+  flex: 0 0 auto;
+  opacity: 0.75;
+  font-size: calc(var(--vscode-font-size) * 0.92);
+}
+
+.file-list__empty {
+  opacity: 0.65;
+  font-style: italic;
+}
+
+.changes__group--conflicted .file-list__row {
+  color: var(--vscode-gitDecoration-conflictingResourceForeground);
+}
+
+.changes__group--staged .file-list__row {
+  color: var(
+    --vscode-gitDecoration-stageModifiedResourceForeground,
+    var(--vscode-gitDecoration-modifiedResourceForeground)
+  );
+}
+
+.changes__group--unstaged .file-list__row {
+  color: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
+.changes__group--untracked .file-list__row {
+  color: var(--vscode-gitDecoration-untrackedResourceForeground);
+}
+
+.changes__group--conflicted .file-list__empty,
+.changes__group--staged .file-list__empty,
+.changes__group--unstaged .file-list__empty,
+.changes__group--untracked .file-list__empty {
+  color: var(--vscode-descriptionForeground);
+}
