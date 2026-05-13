@@ -49,7 +49,8 @@
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
     "onCommand:commitDock.compareWorkingTreeWithRef",
-    "onCommand:commitDock.copyActiveEditorRelativePath"
+    "onCommand:commitDock.copyActiveEditorRelativePath",
+    "onCommand:commitDock.showRecentCommitGraph"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -151,6 +152,11 @@
         "category": "Commit Dock"
       },
       {
+        "command": "commitDock.showRecentCommitGraph",
+        "title": "Show Recent Commit Graph (Output)",
+        "category": "Commit Dock"
+      },
+      {
         "command": "commitDock.selectAll",
         "title": "Select All Changes",
         "category": "Commit Dock"
@@ -226,10 +232,7 @@
         },
         "commitDock.copyHeadRevisionFormat": {
           "type": "string",
-          "enum": [
-            "full",
-            "short"
-          ],
+          "enum": ["full", "short"],
           "default": "full",
           "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }
