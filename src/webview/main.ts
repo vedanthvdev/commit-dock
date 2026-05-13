@@ -18,6 +18,8 @@ type PersistedUiState = {
   commitDraft?: string;
   commitAmend?: boolean;
   commitDockTab?: 'commit' | 'stash';
+  /** Pixel height of the commit footer (message + actions); sash adjusts this. */
+  commitFooterHeightPx?: number;
 };
 
 let lastInjectedFontKey = '';
@@ -112,6 +114,126 @@ function main(): void {
   const commitHint = document.getElementById('commit-hint') as HTMLParagraphElement | null;
   const amendCb = document.getElementById('commit-amend') as HTMLInputElement | null;
   const pushFwlBtn = document.getElementById('commit-push-fwl') as HTMLButtonElement | null;
+  const tabPanelCommit = document.getElementById('tab-panel-commit');
+  const commitFooterSash = document.getElementById('commit-footer-sash') as HTMLDivElement | null;
+
+  const MIN_COMMIT_FOOTER_H = 152;
+  const DEFAULT_COMMIT_FOOTER_H = 200;
+
+  let commitFooterHeightPx =
+    typeof initialPersisted?.commitFooterHeightPx === 'number' &&
+    Number.isFinite(initialPersisted.commitFooterHeightPx) &&
+    initialPersisted.commitFooterHeightPx >= MIN_COMMIT_FOOTER_H
+      ? initialPersisted.commitFooterHeightPx
+      : DEFAULT_COMMIT_FOOTER_H;
+
+  function clampCommitFooterHeight(px: number): number {
+    const panel = tabPanelCommit;
+    if (!panel) {
+      return Math.max(MIN_COMMIT_FOOTER_H, px);
+    }
+    const rect = panel.getBoundingClientRect();
+    const minChanges = 80;
+    const sashH = 6;
+    const maxFooter = Math.max(MIN_COMMIT_FOOTER_H, Math.floor(rect.height - minChanges - sashH));
+    const cap = Math.min(maxFooter, Math.floor(window.innerHeight * 0.78), 720);
+    return Math.min(Math.max(MIN_COMMIT_FOOTER_H, Math.floor(px)), cap);
+  }
+
+  function applyCommitFooterLayout(): void {
+    if (!tabPanelCommit) {
+      return;
+    }
+    commitFooterHeightPx = clampCommitFooterHeight(commitFooterHeightPx);
+    tabPanelCommit.style.setProperty('--commit-footer-height', `${commitFooterHeightPx}px`);
+    if (commitFooterSash) {
+      const maxFoot = clampCommitFooterHeight(9999);
+      commitFooterSash.setAttribute('aria-valuenow', String(commitFooterHeightPx));
+      commitFooterSash.setAttribute('aria-valuemin', String(MIN_COMMIT_FOOTER_H));
+      commitFooterSash.setAttribute('aria-valuemax', String(maxFoot));
+    }
+  }
+
+  function persistCommitFooterHeight(): void {
+    const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
+    vscodeApi.setState({ ...prev, commitFooterHeightPx: commitFooterHeightPx });
+  }
+
+  let sashDrag: { pointerId: number; startY: number; startH: number } | undefined;
+
+  function wireCommitFooterSash(): void {
+    if (!commitFooterSash || !tabPanelCommit) {
+      return;
+    }
+
+    const onMove = (e: PointerEvent) => {
+      if (!sashDrag || e.pointerId !== sashDrag.pointerId) {
+        return;
+      }
+      const delta = sashDrag.startY - e.clientY;
+      commitFooterHeightPx = clampCommitFooterHeight(sashDrag.startH + delta);
+      applyCommitFooterLayout();
+    };
+
+    const end = (e: PointerEvent) => {
+      if (!sashDrag || e.pointerId !== sashDrag.pointerId) {
+        return;
+      }
+      try {
+        commitFooterSash.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      sashDrag = undefined;
+      commitFooterSash.removeEventListener('pointermove', onMove);
+      commitFooterSash.removeEventListener('pointerup', end);
+      commitFooterSash.removeEventListener('pointercancel', end);
+      persistCommitFooterHeight();
+    };
+
+    commitFooterSash.addEventListener('pointerdown', (e: PointerEvent) => {
+      if (e.button !== 0) {
+        return;
+      }
+      sashDrag = { pointerId: e.pointerId, startY: e.clientY, startH: commitFooterHeightPx };
+      try {
+        commitFooterSash.setPointerCapture(e.pointerId);
+      } catch {
+        sashDrag = undefined;
+        return;
+      }
+      commitFooterSash.addEventListener('pointermove', onMove);
+      commitFooterSash.addEventListener('pointerup', end);
+      commitFooterSash.addEventListener('pointercancel', end);
+    });
+
+    commitFooterSash.addEventListener('keydown', (e: KeyboardEvent) => {
+      const step = e.shiftKey ? 24 : 10;
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const dir = e.key === 'ArrowUp' ? 1 : -1;
+        commitFooterHeightPx = clampCommitFooterHeight(commitFooterHeightPx + dir * step);
+        applyCommitFooterLayout();
+        persistCommitFooterHeight();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        commitFooterHeightPx = clampCommitFooterHeight(MIN_COMMIT_FOOTER_H);
+        applyCommitFooterLayout();
+        persistCommitFooterHeight();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        commitFooterHeightPx = clampCommitFooterHeight(9999);
+        applyCommitFooterLayout();
+        persistCommitFooterHeight();
+      }
+    });
+  }
+
+  wireCommitFooterSash();
+  applyCommitFooterLayout();
+  window.addEventListener('resize', () => {
+    applyCommitFooterLayout();
+  });
 
   function applyCommitButtonLabels(): void {
     const amend = amendCb?.checked ?? false;
@@ -500,6 +622,14 @@ function main(): void {
       lastSnapshot = msg.payload;
       uiMutationPending = false;
       renderRepoSnapshot(vscodeApi, msg.payload, { beginRepoMutation, setActionStatus });
+      if (commitHint && msg.payload.rootPath?.length) {
+        const t = commitHint.textContent ?? '';
+        if (t.includes('No Git repository is active')) {
+          commitHint.hidden = true;
+          commitHint.textContent = '';
+        }
+      }
+      applyCommitFooterLayout();
       updateCommitPanelState();
     }
     if (msg.type === 'headCommitMessage') {

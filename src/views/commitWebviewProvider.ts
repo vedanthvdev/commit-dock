@@ -1099,6 +1099,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         >
           <p id="repo" class="repo repo--ellipsis" hidden></p>
           <section id="changes" class="changes changes--scroll" hidden tabindex="-1"></section>
+          <div
+            id="commit-footer-sash"
+            class="commit-dock-footer-sash"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize commit message area"
+            tabindex="0"
+          ></div>
           <footer id="commit-panel" class="commit-dock-footer">
             <label class="sr-only" for="commit-message">Commit message</label>
             <div class="commit-dock-footer__row commit-dock-footer__row--amend">
