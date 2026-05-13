@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { registerBranchCommands } from './branch-commands';
+import { registerCompareCommands } from './compare-commands';
 import { registerFetchCommands } from './fetch-commands';
 import { registerHistoryCommands } from './history-commands';
 import { registerMergeConflictDiffCommands } from './merge-conflict-diff-commands';
@@ -12,6 +13,7 @@ import { CommitWebviewProvider } from './views/commitWebviewProvider';
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   registerBranchCommands(context);
   registerFetchCommands(context);
+  registerCompareCommands(context);
   registerHistoryCommands(context);
   registerMergeConflictDiffCommands(context);
   registerMergeToolCommands(context);
