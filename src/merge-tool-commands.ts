@@ -78,6 +78,7 @@ export function registerMergeToolCommands(context: vscode.ExtensionContext): voi
           cwd: repo.rootUri.fsPath,
           detached: true,
           stdio: 'ignore',
+          windowsHide: true,
         });
         child.on('error', (err) => {
           void vscode.window.showErrorMessage(`Commit Dock: could not start merge tool — ${err.message}`);

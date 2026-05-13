@@ -2,6 +2,8 @@ import { execFile } from 'node:child_process';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
+import { gitExecFileBase } from './git-exec';
+
 const execFileAsync = promisify(execFile);
 
 const MAX_MESSAGE_LEN = 1024;
@@ -41,8 +43,7 @@ export async function createStashViaCli(repoRoot: string, options: CreateStashCl
   await execFileAsync('git', args, {
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
-    windowsHide: true,
-    shell: false,
+    ...gitExecFileBase,
   });
 }
 

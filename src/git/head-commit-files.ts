@@ -3,6 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
+import { gitExecFileBase } from './git-exec';
+
 const execFileAsync = promisify(execFile);
 
 const MAX_REPO_ROOT_LEN = 4096;
@@ -32,13 +34,16 @@ function assertSafeRepoRoot(repoRoot: string): void {
 export async function listHeadCommitRelativePaths(repoRoot: string): Promise<string[]> {
   assertSafeRepoRoot(repoRoot);
   const cwd = path.normalize(repoRoot.trim());
-  const { stdout } = await execFileAsync('git', ['show', '--pretty=format:', '--name-only', '--no-renames', 'HEAD'], {
-    cwd,
-    encoding: 'utf8',
-    maxBuffer: 8 * 1024 * 1024,
-    windowsHide: true,
-    shell: false,
-  });
+  const { stdout } = await execFileAsync(
+    'git',
+    ['-c', 'core.pager=cat', 'show', '--pretty=format:', '--name-only', '--no-renames', 'HEAD'],
+    {
+      cwd,
+      encoding: 'utf8',
+      maxBuffer: 8 * 1024 * 1024,
+      ...gitExecFileBase,
+    },
+  );
   const lines = stdout
     .split(/\r?\n/)
     .map((l) => l.trim())

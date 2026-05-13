@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
+import { gitExecFileBase } from './git/git-exec';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -23,7 +24,7 @@ export function registerGraphCommands(context: vscode.ExtensionContext): void {
         const { stdout } = await execFileAsync(
           'git',
           ['-c', 'core.pager=cat', 'log', '--graph', '--oneline', '--decorate', '-n', '45'],
-          { cwd: root, maxBuffer: 4_000_000 },
+          { cwd: root, maxBuffer: 4_000_000, ...gitExecFileBase },
         );
         channel.clear();
         channel.appendLine(stdout.trimEnd());

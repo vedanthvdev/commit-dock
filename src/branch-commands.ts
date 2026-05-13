@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
 import { getCopyHeadRevisionFormat } from './config';
+import { gitExecFileBase } from './git/git-exec';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -37,6 +38,7 @@ export function registerBranchCommands(context: vscode.ExtensionContext): void {
         const r = await execFileAsync('git', ['for-each-ref', 'refs/heads', '--format=%(refname:short)'], {
           cwd: root,
           maxBuffer: 2_000_000,
+          ...gitExecFileBase,
         });
         stdout = r.stdout;
       } catch (e) {
@@ -61,7 +63,7 @@ export function registerBranchCommands(context: vscode.ExtensionContext): void {
         return;
       }
       try {
-        await execFileAsync('git', ['checkout', picked], { cwd: root });
+        await execFileAsync('git', ['checkout', picked], { cwd: root, ...gitExecFileBase });
         void vscode.window.showInformationMessage(`Commit Dock: checked out ${picked}.`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -92,7 +94,7 @@ export function registerBranchCommands(context: vscode.ExtensionContext): void {
       }
       const branch = name.trim();
       try {
-        await execFileAsync('git', ['checkout', '-b', branch], { cwd: root });
+        await execFileAsync('git', ['checkout', '-b', branch], { cwd: root, ...gitExecFileBase });
         void vscode.window.showInformationMessage(`Commit Dock: created and checked out ${branch}.`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -109,7 +111,7 @@ export function registerBranchCommands(context: vscode.ExtensionContext): void {
         return;
       }
       try {
-        const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: root });
+        const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: root, ...gitExecFileBase });
         const sha = stdout.trim();
         if (!/^[0-9a-f]{7,40}$/i.test(sha)) {
           void vscode.window.showErrorMessage('Commit Dock: unexpected output from git rev-parse.');
