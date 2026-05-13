@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { registerBranchCommands } from './branch-commands';
 import { registerCompareCommands } from './compare-commands';
+import { registerDiffStatCommands } from './diff-stat-commands';
 import { registerFetchCommands } from './fetch-commands';
 import { registerGraphCommands } from './graph-commands';
 import { registerHistoryCommands } from './history-commands';
@@ -18,6 +19,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerFetchCommands(context);
   registerGraphCommands(context);
   registerCompareCommands(context);
+  registerDiffStatCommands(context);
   registerHistoryCommands(context);
   registerMergeConflictDiffCommands(context);
   registerMergeToolCommands(context);
