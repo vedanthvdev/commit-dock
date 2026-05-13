@@ -35,7 +35,10 @@
     "onCommand:commitDock.unstageSelected",
     "onCommand:commitDock.discardSelected",
     "onCommand:commitDock.push",
-    "onCommand:commitDock.pushForceWithLease"
+    "onCommand:commitDock.pushForceWithLease",
+    "onCommand:commitDock.checkoutLocalBranch",
+    "onCommand:commitDock.createBranchFromHead",
+    "onCommand:commitDock.copyHeadRevision"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -64,6 +67,21 @@
       {
         "command": "commitDock.showCommitView",
         "title": "Focus Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.checkoutLocalBranch",
+        "title": "Checkout Local Branch…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.createBranchFromHead",
+        "title": "Create Branch from HEAD…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.copyHeadRevision",
+        "title": "Copy HEAD Revision",
         "category": "Commit Dock"
       },
       {

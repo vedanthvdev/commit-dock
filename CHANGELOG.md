@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
+- **Palette Git helpers:** checkout a local branch, create a branch from **HEAD**, and copy the full **HEAD** revision to the clipboard for the primary repository (fixed `git` / `execFile` argument lists).
 
 ### Changed
 
