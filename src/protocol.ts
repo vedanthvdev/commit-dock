@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -35,7 +35,8 @@ export interface RepoSnapshot {
 export type HostToWebviewMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'hello'; payload: { message: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'gitStatus'; payload: { ok: boolean; detail?: string } }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'repoSnapshot'; payload: RepoSnapshot };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'repoSnapshot'; payload: RepoSnapshot }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitResult'; payload: { ok: boolean; detail?: string } };
 
 export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'ready' }
@@ -46,7 +47,8 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'deselectAll' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'unstageSelected' }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string } };
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
@@ -72,6 +74,22 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
 
   if (msg.type === 'stageSelected' || msg.type === 'unstageSelected' || msg.type === 'discardSelected') {
     return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'commit') {
+    const payload = (msg as { payload?: unknown }).payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return undefined;
+    }
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message !== 'string' || message.length > 200_000) {
+      return undefined;
+    }
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    return { protocolVersion: PROTOCOL_VERSION, type: 'commit', payload: { message: trimmed } };
   }
 
   if (msg.type === 'setPathSelected') {

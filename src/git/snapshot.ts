@@ -95,6 +95,11 @@ export function pathsToUnstage(repo: Repository, selectedPaths: readonly string[
   return out;
 }
 
+/** Staged paths the user explicitly deselected (excluded from the next commit until restaged). */
+export function pathsStagedAndDeselected(repo: Repository, deselected: ReadonlySet<string>): string[] {
+  return repo.state.indexChanges.map((c) => c.uri.fsPath).filter((p) => deselected.has(p));
+}
+
 export type DiscardPartition = { clean: string[]; restore: string[] };
 
 /** Selected paths that can be discarded from working tree / untracked (never staged-only). */

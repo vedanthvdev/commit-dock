@@ -13,11 +13,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 4: Commit message + plain commit (+ auto-stage selected).
 - Phase 5: Amend + message defaulting from HEAD.
 - Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.5.0] - 2026-05-13
+
+### Added
+
+- **Phase 4 — Commit:** multiline **commit message** editor with draft persistence, **Commit** button, and **Ctrl/Cmd+Enter** to submit (protocol **v5**).
+- **Index matches selection before commit:** deselected staged paths are **unstaged**, then selected **changes** / **untracked** paths are **staged**, then a plain **`commit`** runs; merge conflicts block the action with clear feedback.
+- **Host → webview `commitResult`** for inline status and to reset the busy state.
 
 ## [0.4.0] - 2026-05-13
 
@@ -73,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.1...v0.2.0

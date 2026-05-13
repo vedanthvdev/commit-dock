@@ -13,6 +13,7 @@ declare global {
 
 type PersistedUiState = {
   detailsOpen?: Record<string, boolean>;
+  commitDraft?: string;
 };
 
 function main(): void {
@@ -22,6 +23,89 @@ function main(): void {
   }
 
   vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'ready' });
+
+  let lastGitOk = false;
+  let lastSnapshot: RepoSnapshot | undefined;
+  let committing = false;
+
+  const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
+  const commitBtn = document.getElementById('commit-submit') as HTMLButtonElement | null;
+  const commitHint = document.getElementById('commit-hint') as HTMLParagraphElement | null;
+
+  function updateCommitPanelState(): void {
+    const panel = document.getElementById('commit-panel');
+    if (panel) {
+      panel.hidden = !lastGitOk;
+    }
+    if (!textarea || !commitBtn) {
+      return;
+    }
+    const root = lastSnapshot?.rootPath?.length ? lastSnapshot.rootPath : '';
+    const conflictCount = lastSnapshot?.groups.find((g) => g.id === 'conflicted')?.files.length ?? 0;
+    const hasRepo = !!root;
+    const blocked = conflictCount > 0;
+    commitBtn.disabled = committing || !hasRepo || blocked;
+    textarea.disabled = !lastGitOk || !hasRepo;
+  }
+
+  function persistCommitDraft(): void {
+    if (!textarea) {
+      return;
+    }
+    const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
+    vscodeApi.setState({ ...prev, commitDraft: textarea.value });
+  }
+
+  let draftTimer: ReturnType<typeof setTimeout> | undefined;
+  function onCommitInput(): void {
+    if (draftTimer) {
+      window.clearTimeout(draftTimer);
+    }
+    draftTimer = window.setTimeout(() => persistCommitDraft(), 250);
+  }
+
+  function submitCommit(): void {
+    if (!textarea || !commitBtn || commitBtn.disabled || committing) {
+      return;
+    }
+    const body = textarea.value.trim();
+    if (!body.length) {
+      if (commitHint) {
+        commitHint.hidden = false;
+        commitHint.textContent = 'Enter a commit message.';
+      }
+      return;
+    }
+    if (commitHint) {
+      commitHint.hidden = true;
+    }
+    committing = true;
+    updateCommitPanelState();
+    vscodeApi.postMessage({
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'commit',
+      payload: { message: textarea.value },
+    });
+  }
+
+  if (textarea && commitBtn) {
+    const persisted = vscodeApi.getState() as PersistedUiState | undefined;
+    if (typeof persisted?.commitDraft === 'string') {
+      textarea.value = persisted.commitDraft;
+    }
+    textarea.addEventListener('input', onCommitInput);
+    textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        submitCommit();
+      }
+    });
+    commitBtn.addEventListener('click', () => {
+      submitCommit();
+    });
+  }
+
+  updateCommitPanelState();
 
   window.addEventListener('message', (event: MessageEvent<HostToWebviewMessage>) => {
     const msg = event.data;
@@ -35,13 +119,35 @@ function main(): void {
       }
     }
     if (msg.type === 'gitStatus') {
+      lastGitOk = msg.payload.ok;
+      updateCommitPanelState();
       const status = document.getElementById('status');
       if (status) {
         status.textContent = msg.payload.detail ?? (msg.payload.ok ? 'Git ready.' : 'No Git repository.');
       }
     }
     if (msg.type === 'repoSnapshot') {
+      lastSnapshot = msg.payload;
       renderRepoSnapshot(vscodeApi, msg.payload);
+      updateCommitPanelState();
+    }
+    if (msg.type === 'commitResult') {
+      committing = false;
+      if (msg.payload.ok) {
+        if (textarea) {
+          textarea.value = '';
+        }
+        const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
+        vscodeApi.setState({ ...prev, commitDraft: '' });
+        if (commitHint) {
+          commitHint.hidden = true;
+          commitHint.textContent = '';
+        }
+      } else if (commitHint) {
+        commitHint.hidden = false;
+        commitHint.textContent = msg.payload.detail ?? 'Commit failed.';
+      }
+      updateCommitPanelState();
     }
   });
 }
