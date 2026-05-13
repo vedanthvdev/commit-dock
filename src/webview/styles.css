@@ -52,6 +52,16 @@ body {
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+.selection-toolbar__btn--danger {
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.12));
+  color: var(--vscode-errorForeground);
+  border-color: var(--vscode-inputValidation-errorBorder, transparent);
+}
+
+.selection-toolbar__btn--danger:hover {
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.2));
+}
+
 .changes:focus {
   outline: 1px solid var(--vscode-focusBorder);
   outline-offset: -1px;

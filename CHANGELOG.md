@@ -13,12 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 3: Stage / unstage / discard from webview.
 - Phase 4: Commit message + plain commit (+ auto-stage selected).
 - Phase 5: Amend + message defaulting from HEAD.
 - Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.4.0] - 2026-05-13
+
+### Added
+
+- **Phase 3 — Stage / unstage / discard:** host applies **`vscode.git`** `add`, `revert` (unstage), `clean` (untracked), and `restore` (working tree) for **selected** paths only; destructive discard uses a **modal confirmation**.
+- **Webview toolbar:** Stage, Unstage, and Discard actions (protocol **v4**).
+- **Commands:** `commitDock.stageSelected`, `commitDock.unstageSelected`, and `commitDock.discardSelected`.
 
 ## [0.3.0] - 2026-05-13
 
@@ -66,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.0...v0.1.1

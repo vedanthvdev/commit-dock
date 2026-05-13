@@ -97,8 +97,12 @@ export interface Repository {
   readonly onDidCommit: Event<void>;
   getCommit(ref: string): Promise<Commit>;
   add(paths: string[]): Promise<void>;
+  /** Unstage paths (remove from index) while keeping working tree content. */
   revert(paths: string[]): Promise<void>;
+  /** Remove untracked paths (destructive). */
   clean(paths: string[]): Promise<void>;
+  /** Restore working tree or index from HEAD / index (matches `git restore`). */
+  restore(paths: string[], options?: { staged?: boolean; ref?: string }): Promise<void>;
   commit(message: string, opts?: CommitOptions): Promise<void>;
   push(
     remoteName?: string,

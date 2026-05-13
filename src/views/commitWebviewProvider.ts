@@ -8,6 +8,10 @@ import {
   emptyRepoSnapshot,
   getAllSelectablePaths,
   getSelectablePathsForGroup,
+  getSelectedSelectablePaths,
+  pathsToDiscard,
+  pathsToStage,
+  pathsToUnstage,
   pickPrimaryRepository,
 } from '../git/snapshot';
 import { PROTOCOL_VERSION, parseWebviewMessage, type HostToWebviewMessage } from '../protocol';
@@ -47,6 +51,21 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._context.subscriptions.push(
       vscode.commands.registerCommand('commitDock.deselectAll', () => {
         this.deselectAll();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.stageSelected', () => {
+        void this.stageSelected();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.unstageSelected', () => {
+        void this.unstageSelected();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.discardSelected', () => {
+        void this.discardSelected();
       }),
     );
   }
@@ -134,6 +153,21 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           this._postSnapshotImmediate(repo);
           return;
         }
+
+        if (msg.type === 'stageSelected') {
+          await this._stageSelected(repo, set);
+          return;
+        }
+
+        if (msg.type === 'unstageSelected') {
+          await this._unstageSelected(repo, set);
+          return;
+        }
+
+        if (msg.type === 'discardSelected') {
+          await this._discardSelected(repo, set);
+          return;
+        }
       }),
     );
 
@@ -180,6 +214,109 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
     for (const p of getAllSelectablePaths(repo)) {
       set.add(p);
+    }
+    this._postSnapshotImmediate(repo);
+  }
+
+  stageSelected(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      return;
+    }
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    void this._stageSelected(repo, set);
+  }
+
+  unstageSelected(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      return;
+    }
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    void this._unstageSelected(repo, set);
+  }
+
+  discardSelected(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      return;
+    }
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    void this._discardSelected(repo, set);
+  }
+
+  private _showGitError(operation: string, err: unknown): void {
+    const detail = err instanceof Error ? err.message : String(err);
+    void vscode.window.showErrorMessage(`Commit Dock: ${operation} failed — ${detail}`);
+  }
+
+  private async _stageSelected(repo: Repository, set: Set<string>): Promise<void> {
+    const selected = getSelectedSelectablePaths(repo, set);
+    const toStage = pathsToStage(repo, selected);
+    if (!toStage.length) {
+      return;
+    }
+    try {
+      await repo.add(toStage);
+    } catch (err) {
+      this._showGitError('Stage', err);
+      return;
+    }
+    for (const p of toStage) {
+      set.delete(p);
+    }
+    this._postSnapshotImmediate(repo);
+  }
+
+  private async _unstageSelected(repo: Repository, set: Set<string>): Promise<void> {
+    const selected = getSelectedSelectablePaths(repo, set);
+    const toUnstage = pathsToUnstage(repo, selected);
+    if (!toUnstage.length) {
+      return;
+    }
+    try {
+      await repo.revert(toUnstage);
+    } catch (err) {
+      this._showGitError('Unstage', err);
+      return;
+    }
+    for (const p of toUnstage) {
+      set.delete(p);
+    }
+    this._postSnapshotImmediate(repo);
+  }
+
+  private async _discardSelected(repo: Repository, set: Set<string>): Promise<void> {
+    const selected = getSelectedSelectablePaths(repo, set);
+    const { clean, restore } = pathsToDiscard(repo, selected);
+    if (!clean.length && !restore.length) {
+      return;
+    }
+    const total = clean.length + restore.length;
+    const confirm = await vscode.window.showWarningMessage(
+      `Discard ${total} selected file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
+      { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
+      'Discard',
+    );
+    if (confirm !== 'Discard') {
+      return;
+    }
+    try {
+      if (clean.length) {
+        await repo.clean(clean);
+      }
+      if (restore.length) {
+        await repo.restore(restore, {});
+      }
+    } catch (err) {
+      this._showGitError('Discard', err);
+      return;
+    }
+    for (const p of clean) {
+      set.delete(p);
+    }
+    for (const p of restore) {
+      set.delete(p);
     }
     this._postSnapshotImmediate(repo);
   }

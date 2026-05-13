@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -43,7 +43,10 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'setPathSelected'; payload: { path: string; selected: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'setGroupSelection'; payload: { group: SnapshotGroupId; checked: boolean } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'selectAll' }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'deselectAll' };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'deselectAll' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stageSelected' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'unstageSelected' }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' };
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
@@ -64,6 +67,10 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
   }
 
   if (msg.type === 'selectAll' || msg.type === 'deselectAll') {
+    return msg as WebviewToHostMessage;
+  }
+
+  if (msg.type === 'stageSelected' || msg.type === 'unstageSelected' || msg.type === 'discardSelected') {
     return msg as WebviewToHostMessage;
   }
 
