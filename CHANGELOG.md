@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
-- **Palette Git helpers:** checkout a local branch, create a branch from **HEAD**, and copy the full **HEAD** revision to the clipboard for the primary repository (fixed `git` / `execFile` argument lists).
 - **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **14**) so the webview can hide **Commit and Push** without a reload.
 - **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
-- **Change list toolbar:** **Expand all** / **Collapse all** for `<details>` change groups (partial **#28** toolbar parity; directory tree grouping remains future work).
 - **External merge tool:** **`commitDock.externalMergeToolPath`** plus **Open External Merge Tool for Conflict…** (palette) launches a user-provided merge tool with one conflict path argument (no shell).
+- **Change list toolbar:** **Expand all** / **Collapse all** for the `<details>` change groups (toolbar parity toward **#28**; directory tree grouping remains future work).
 
 ### Changed
 
@@ -26,30 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
-
-## [0.9.10] - 2026-05-13
-
-### Changed
-
-- [#39](https://github.com/vedanthvdev/commit-dock/pull/39): COMMITDOCK-33-34: External merge tool path + palette launcher
-
-## [0.9.9] - 2026-05-13
-
-### Changed
-
-- [#40](https://github.com/vedanthvdev/commit-dock/pull/40): COMMITDOCK-28-toolbar: Expand/collapse all change groups
-
-## [0.9.8] - 2026-05-13
-
-### Changed
-
-- [#38](https://github.com/vedanthvdev/commit-dock/pull/38): COMMITDOCK-29-35: Shelf stash copy + Commit & Push toggle
-
-## [0.9.7] - 2026-05-13
-
-### Changed
-
-- [#37](https://github.com/vedanthvdev/commit-dock/pull/37): COMMITDOCK-31-32: Palette branch helpers + copy HEAD SHA
 
 ## [0.9.6] - 2026-05-13
 
