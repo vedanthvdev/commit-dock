@@ -16,6 +16,7 @@
 | `commitDock.confirmBeforeDiscard` | `true` | If `false`, **Discard** runs immediately without a confirmation dialog. |
 | `commitDock.showActivityBarBadge` | `true` | When `true`, the Commit Dock activity bar icon shows how many paths have pending work in the **primary** repository (same scope as the Commit view). |
 | `commitDock.showCommitAndPushButton` | `true` | When `false`, hides **Commit and Push** so commit and push stay two explicit steps. |
+| `commitDock.externalMergeToolPath` | `""` | Optional path to your merge tool binary or macOS `.app` for **Open External Merge Tool for Conflict…** (see README). |
 
 Configure under **Settings → Extensions → Commit Dock**, or edit `settings.json`.
 
@@ -29,6 +30,7 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 | `commitDock.checkoutLocalBranch` | Checkout Local Branch… |
 | `commitDock.createBranchFromHead` | Create Branch from HEAD… |
 | `commitDock.copyHeadRevision` | Copy HEAD revision (full SHA) to the clipboard |
+| `commitDock.openExternalMergeTool` | Open External Merge Tool for Conflict… |
 | `commitDock.selectAll` | Select All Changes |
 | `commitDock.deselectAll` | Deselect All Changes |
 | `commitDock.stageSelected` | Stage Selected Changes |
@@ -51,6 +53,7 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 - **Webview messages** are validated in the extension host (`parseWebviewMessage`): unknown types, wrong `protocolVersion`, oversized commit bodies, oversized paths, and absurd stash indices are rejected before touching Git.
 - **Stash listing** runs `git` via `execFile` with a **fixed argument list** (no shell), `shell: false`, and only after the repo root is checked to be a **normal directory** on disk. Output is capped to avoid pathological lists.
 - **Trust:** treat this extension like other Git UI: it can **stage, commit, push, discard, and stash** in folders you open. Use only in workspaces you trust.
+- **External merge tool:** when configured, **Open External Merge Tool for Conflict…** starts your tool with a **single** conflict file path argument via `spawn` (no shell, no interpolated command strings). Point the setting at a binary you trust.
 - **Dependencies:** run `npm audit` periodically; CI uses **`npm ci`** for reproducible installs.
 
 ## Development

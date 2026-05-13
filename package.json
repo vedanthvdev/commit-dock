@@ -38,7 +38,8 @@
     "onCommand:commitDock.pushForceWithLease",
     "onCommand:commitDock.checkoutLocalBranch",
     "onCommand:commitDock.createBranchFromHead",
-    "onCommand:commitDock.copyHeadRevision"
+    "onCommand:commitDock.copyHeadRevision",
+    "onCommand:commitDock.openExternalMergeTool"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -82,6 +83,11 @@
       {
         "command": "commitDock.copyHeadRevision",
         "title": "Copy HEAD Revision",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.openExternalMergeTool",
+        "title": "Open External Merge Tool for Conflict…",
         "category": "Commit Dock"
       },
       {
@@ -152,6 +158,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show **Commit and Push** in the Commit webview. Turn off if you prefer to commit and push in two explicit steps only."
+        },
+        "commitDock.externalMergeToolPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to a **user-provided** external merge tool executable, or a macOS `.app` bundle. Used by **Open External Merge Tool for Conflict…**; the tool is started with the conflicted file path as its **sole** argument (`execFile`-style spawn, no shell)."
         }
       }
     }

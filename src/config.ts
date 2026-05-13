@@ -34,3 +34,10 @@ export function getShowCommitAndPushButton(): boolean {
     .get<boolean>('showCommitAndPushButton');
   return v !== false;
 }
+
+
+/** Optional path to an external merge tool executable or macOS `.app` bundle (user-provided). */
+export function getExternalMergeToolPath(): string {
+  const v = vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION).get<string>('externalMergeToolPath');
+  return typeof v === 'string' ? v.trim() : '';
+}
