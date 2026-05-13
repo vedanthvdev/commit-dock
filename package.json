@@ -54,6 +54,7 @@
     "onCommand:commitDock.compareWorkingTreeWithRef",
     "onCommand:commitDock.copyActiveEditorRelativePath",
     "onCommand:commitDock.revealPrimaryRepoInOS",
+    "onCommand:commitDock.copyPrimaryRepositoryRoot",
     "onCommand:commitDock.openTerminalAtPrimaryRepo",
     "onCommand:commitDock.insertRecentCommitSubject",
     "onCommand:commitDock.showRecentCommitGraph"
@@ -175,6 +176,11 @@
       {
         "command": "commitDock.revealPrimaryRepoInOS",
         "title": "Reveal Primary Repository in OS",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.copyPrimaryRepositoryRoot",
+        "title": "Copy Primary Repository Root",
         "category": "Commit Dock"
       },
       {
