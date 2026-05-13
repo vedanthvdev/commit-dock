@@ -23,8 +23,10 @@ on:
         required: true
         type: string
 
+# Serialize with version bump + auto-tag so parallel automation cannot race on
+# master, tags, or release assets (same idea as dayseam `release-master-push`).
 concurrency:
-  group: release-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  group: commit-dock-release-line
   cancel-in-progress: false
 
 permissions:

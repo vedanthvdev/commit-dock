@@ -1,0 +1,43 @@
+# Ensures semver:* labels exist so they show up in the PR label picker (GitHub
+# does not create labels until something defines them). Pattern aligned with
+# https://github.com/dayseam/dayseam (semver:none = no release train).
+
+name: Sync SemVer labels
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+permissions:
+  issues: write
+
+concurrency:
+  group: sync-semver-labels
+  cancel-in-progress: true
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create or update SemVer labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+
+          upsert() {
+            local name="$1" color="$2" desc="$3"
+            if gh label create "${name}" --repo "${repo}" --color "${color}" --description "${desc}" 2>/dev/null; then
+              echo "Created label ${name}"
+            else
+              gh label edit "${name}" --repo "${repo}" --color "${color}" --description "${desc}"
+              echo "Updated label ${name}"
+            fi
+          }
+
+          upsert "semver:patch" "0E8A16" "After merge: bump extension patch version (npm version patch) from current package.json on master."
+          upsert "semver:minor" "FBCA04" "After merge: bump extension minor version (npm version minor) from current package.json on master."
+          upsert "semver:major" "B60205" "After merge: bump extension major version (npm version major) from current package.json on master."
+          upsert "semver:none" "C5DEF5" "Merge without bumping package.json or shipping a new release (no version bump workflow)."

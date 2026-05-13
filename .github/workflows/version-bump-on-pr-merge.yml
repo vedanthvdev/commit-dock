@@ -1,0 +1,295 @@
+# After a PR is merged into `master`, bump `package.json` / lockfile from PR labels
+# (`semver:patch|minor|major`), prepend CHANGELOG, push one commit, then Auto-tag
+# + Release run for the new version. `semver:none` skips the bump (same role as
+# Dayseam's no-release label); see https://github.com/dayseam/dayseam
+#
+# Idempotency / safety:
+# - Never `git reset` to the merge commit (that would drop commits landed on master
+#   after the merge but before this job runs).
+# - Skip if master already matches the expected next SemVer for this label (re-runs,
+#   or the bump landed via another path).
+# - Skip if master is already strictly ahead of the merge baseline (stale webhook).
+# - Abort if master tip version does not match the merge commit version (unexpected).
+# - `wait-for-ci` polls required check-runs on `merge_commit_sha` before bumping
+#   (defense-in-depth if a PR was merged with failing checks).
+
+name: Version bump on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: write
+  checks: read
+
+concurrency:
+  group: commit-dock-release-line
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'master' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      skip: ${{ steps.resolve.outputs.skip }}
+      kind: ${{ steps.resolve.outputs.kind }}
+    steps:
+      - id: resolve
+        env:
+          LABEL_JSON: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          set -euo pipefail
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("skip-semver") != null' >/dev/null; then
+            if echo "${LABEL_JSON}" | jq -e 'map(.name) | (index("semver:major") != null) or (index("semver:minor") != null) or (index("semver:patch") != null)' >/dev/null; then
+              echo "::error::Do not combine skip-semver with semver:major|minor|patch."
+              exit 1
+            fi
+            echo "::notice::skip-semver is deprecated; use semver:none on new PRs."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:none") != null' >/dev/null; then
+            if echo "${LABEL_JSON}" | jq -e 'map(.name) | (index("semver:major") != null) or (index("semver:minor") != null) or (index("semver:patch") != null)' >/dev/null; then
+              echo "::error::Do not combine semver:none with semver:major|minor|patch."
+              exit 1
+            fi
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          bump_count="$(echo "${LABEL_JSON}" | jq '[.[] | .name | select(. == "semver:major" or . == "semver:minor" or . == "semver:patch")] | length')"
+          if [ "${bump_count}" -gt 1 ]; then
+            echo "::error::Merged PR has multiple semver bump labels (major/minor/patch); pick exactly one."
+            exit 1
+          fi
+
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:major") != null' >/dev/null; then
+            echo "kind=major" >> "$GITHUB_OUTPUT"
+          elif echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:minor") != null' >/dev/null; then
+            echo "kind=minor" >> "$GITHUB_OUTPUT"
+          elif echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:patch") != null' >/dev/null; then
+            echo "kind=patch" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No semver:patch|minor|major (or semver:none / skip-semver) on merged PR #${{ github.event.pull_request.number }}; skipping automatic version bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "kind=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+  wait-for-ci:
+    name: wait-for-ci
+    needs: labels
+    if: needs.labels.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - name: Poll required check-runs on the merge commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          # Must match check names on the merge commit (see branch-protection required checks).
+          REQUIRED_CHECKS: |
+            build
+          MAX_ATTEMPTS: 10
+          SLEEP_SECONDS: 60
+        run: |
+          set -euo pipefail
+          if [[ -z "${SHA:-}" || "${SHA}" == "null" ]]; then
+            echo "::error::merge_commit_sha unavailable on event payload; cannot poll CI status." >&2
+            exit 1
+          fi
+          echo "==> Waiting for required checks on ${SHA} in ${REPO}:"
+          echo "${REQUIRED_CHECKS}" | sed 's/^/    - /'
+          required=()
+          while IFS= read -r name; do
+            [[ -n "${name}" ]] && required+=("${name}")
+          done <<<"${REQUIRED_CHECKS}"
+
+          attempt=0
+          while (( attempt < MAX_ATTEMPTS )); do
+            attempt=$((attempt + 1))
+            echo "==> Attempt ${attempt}/${MAX_ATTEMPTS}"
+            runs_json="$(gh api --paginate "repos/${REPO}/commits/${SHA}/check-runs" -q '.check_runs[] | {name, status, conclusion}' | jq -s '.')"
+            all_ok=true
+            missing=()
+            failing=()
+            for need in "${required[@]}"; do
+              entry="$(echo "${runs_json}" | jq -c --arg n "${need}" '[.[] | select(.name == $n)] | last')"
+              if [[ -z "${entry}" || "${entry}" == "null" ]]; then
+                missing+=("${need}")
+                all_ok=false
+                continue
+              fi
+              status="$(echo "${entry}" | jq -r '.status')"
+              conclusion="$(echo "${entry}" | jq -r '.conclusion')"
+              if [[ "${status}" != "completed" ]]; then
+                echo "    - ${need}: status=${status} (waiting)"
+                all_ok=false
+                continue
+              fi
+              if [[ "${conclusion}" != "success" ]]; then
+                failing+=("${need}:${conclusion}")
+                all_ok=false
+              else
+                echo "    - ${need}: success"
+              fi
+            done
+
+            if (( ${#failing[@]} > 0 )); then
+              echo "::error::Required checks failed on ${SHA}: ${failing[*]}. Refusing to bump." >&2
+              exit 1
+            fi
+
+            if [[ "${all_ok}" == "true" ]]; then
+              echo "==> All required checks green on ${SHA}."
+              exit 0
+            fi
+
+            if (( ${#missing[@]} > 0 )); then
+              echo "    (missing runs: ${missing[*]})"
+            fi
+            if (( attempt < MAX_ATTEMPTS )); then
+              sleep "${SLEEP_SECONDS}"
+            fi
+          done
+
+          echo "::error::Timed out after ${MAX_ATTEMPTS} attempts waiting for required checks on ${SHA}." >&2
+          exit 1
+
+  bump:
+    runs-on: ubuntu-latest
+    needs: [labels, wait-for-ci]
+    if: >
+      always() &&
+      needs.labels.result == 'success' &&
+      needs.labels.outputs.skip == 'false' &&
+      (needs.wait-for-ci.result == 'success' || needs.wait-for-ci.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Bump version, update CHANGELOG, push to master
+        id: bump
+        env:
+          BUMP_KIND: ${{ needs.labels.outputs.kind }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          TAG_PUSH_TOKEN: ${{ secrets.TAG_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          semver_gt() {
+            node -e '
+              const [a,b]=process.argv.slice(1);
+              const p=(v)=>v.split(".").map((x)=>parseInt(x,10));
+              const A=p(a),B=p(b);
+              for (let i=0;i<Math.max(A.length,B.length);i+=1){
+                const x=A[i]||0,y=B[i]||0;
+                if (x!==y) process.exit(x>y?0:1);
+              }
+              process.exit(1);
+            ' "$1" "$2"
+          }
+
+          git fetch origin master
+          git checkout master
+          git reset --hard origin/master
+
+          tip_ver="$(node -p "JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).version")"
+          echo "master tip (origin/master) package.json version: ${tip_ver}"
+
+          if ! git merge-base --is-ancestor "${MERGE_SHA}" HEAD; then
+            echo "::error::merge_commit_sha ${MERGE_SHA} is not on master; cannot bump."
+            exit 1
+          fi
+
+          first_parent="$(git rev-parse "${MERGE_SHA}^1" 2>/dev/null || true)"
+          if [ -z "${first_parent}" ]; then
+            echo "::error::Could not resolve first parent of merge commit ${MERGE_SHA}."
+            exit 1
+          fi
+
+          merge_ver="$(git show "${MERGE_SHA}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")"
+          parent_ver="$(git show "${first_parent}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")"
+
+          echo "Extension version on merge commit (package.json): ${merge_ver}"
+          echo "First-parent version (master line before this PR): ${parent_ver}"
+
+          if [ "${merge_ver}" != "${parent_ver}" ]; then
+            echo "::notice::package.json version changed inside the merged PR (${parent_ver} → ${merge_ver}); skipping label-driven bump."
+            exit 0
+          fi
+
+          expected_next="$(node .github/scripts/next-version.mjs "${merge_ver}" "${BUMP_KIND}")"
+          echo "Expected next version from label ${BUMP_KIND}: ${expected_next}"
+
+          if [ "${tip_ver}" = "${expected_next}" ]; then
+            echo "::notice::master is already at ${expected_next} for this bump kind; skipping duplicate bump (re-run or already applied)."
+            exit 0
+          fi
+
+          if semver_gt "${tip_ver}" "${merge_ver}"; then
+            echo "::notice::master (${tip_ver}) is already ahead of merge baseline (${merge_ver}); skipping bump for stale merge event."
+            exit 0
+          fi
+
+          if [ "${tip_ver}" != "${merge_ver}" ]; then
+            echo "::error::Unexpected versions: merge=${merge_ver}, tip=${tip_ver}. Refusing to guess; fix master or re-run from a clean merge."
+            exit 1
+          fi
+
+          echo "Applying npm version ${BUMP_KIND} bump from ${merge_ver} on top of current master…"
+          npm version "${BUMP_KIND}" --no-git-tag-version
+
+          new_ver="$(node -p "require('./package.json').version")"
+          if [ "${new_ver}" != "${expected_next}" ]; then
+            echo "::error::npm version produced ${new_ver} but expected ${expected_next}."
+            exit 1
+          fi
+          echo "new_version=${new_ver}" >> "$GITHUB_OUTPUT"
+
+          export RELEASE_VERSION="${new_ver}"
+          export RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          export PR_NUMBER="${PR_NUMBER}"
+          PR_TITLE_ONE_LINE="$(printf '%s' "${PR_TITLE}" | tr '\n\r' '  ')"
+          export PR_TITLE="${PR_TITLE_ONE_LINE}"
+          export PR_URL="${PR_URL}"
+          node .github/scripts/append-release-changelog.mjs
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::error::No staged changes after version bump; aborting."
+            exit 1
+          fi
+
+          git commit -m "chore(release): v${new_ver} (PR #${PR_NUMBER})"
+
+          if [ -n "${TAG_PUSH_TOKEN}" ]; then
+            git push "https://x-access-token:${TAG_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master
+          else
+            git push origin HEAD:master
+          fi
