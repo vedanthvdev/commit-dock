@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.7] - 2026-05-13
+
+### Changed
+
+- [#37](https://github.com/vedanthvdev/commit-dock/pull/37): COMMITDOCK-31-32: Palette branch helpers + copy HEAD SHA
+
 ## [0.9.6] - 2026-05-13
 
 ### Chore
