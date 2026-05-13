@@ -1,7 +1,12 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 10;
+export const PROTOCOL_VERSION = 13;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
+
+export type SnapshotFileIcon =
+  | { kind: 'themeFont'; family: string; codePoint: number; color: string; fontSize?: string }
+  | { kind: 'themeImage'; src: string }
+  | { kind: 'codicon'; classes: string };
 
 export interface SnapshotFile {
   /** Absolute path on disk (used later for staging). */
@@ -12,7 +17,9 @@ export interface SnapshotFile {
   status: number;
   statusLabel: string;
   group: SnapshotGroupId;
-  /** Full codicon class list, e.g. `codicon codicon-diff-modified`. */
+  /** File-type icon resolved from the active File Icon Theme extension (or codicons as fallback). */
+  fileIcon: SnapshotFileIcon;
+  /** Git-status codicon classes (used for merge conflicts). */
   codicon: string;
   /** Whether the file is selected for bulk actions (not in the deselected set). */
   selected: boolean;
@@ -23,7 +30,21 @@ export interface AmendHeadFileEntry {
   path: string;
   /** Path relative to workspace folders when possible. */
   relPath: string;
+  fileIcon: SnapshotFileIcon;
 }
+
+export type FileIconFontFace = {
+  /** CSS `font-family` token injected via `@font-face`. */
+  cssFamily: string;
+  /** Webview-local URI for the font file. */
+  src: string;
+  /** MIME format string for `format('...')` (e.g. `woff`, `woff2`, `truetype`). */
+  format?: string;
+  weight?: string;
+  style?: string;
+  /** Theme-provided relative sizing hint (usually a percentage). */
+  size?: string;
+};
 
 export interface RepoSnapshot {
   rootPath: string;
@@ -39,6 +60,8 @@ export interface RepoSnapshot {
   updatedAt: number;
   /** Files touched by `HEAD` (amend context; mirrors IntelliJ’s “included in last commit” list). */
   amendHeadFiles?: readonly AmendHeadFileEntry[];
+  /** `@font-face` sources for the active File Icon Theme (only when `themeFont` icons are used). */
+  fileIconFonts?: readonly FileIconFontFace[];
 }
 
 /** Stash row for the webview stash panel (from `git stash list`). */

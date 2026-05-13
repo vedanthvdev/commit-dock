@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+  <!-- Git branch graph + star (monochrome, currentColor) for activity bar / marketplace -->
+  <g
+    stroke="currentColor"
+    stroke-width="1.85"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  >
+    <!-- mainline: bottom commit, stem, top commit -->
+    <circle cx="6.25" cy="17.25" r="2.35" />
+    <path d="M6.25 14.85V8.1" />
+    <circle cx="6.25" cy="6.1" r="2.35" />
+    <!-- branch from mid-stem to upper-right commit -->
+    <path d="M6.25 12.35 15.9 7.35" />
+    <circle cx="16.35" cy="7.35" r="2.35" />
+  </g>
+  <!-- accent star, top-right (filled reads better at 24–28px) -->
+  <path
+    fill="currentColor"
+    d="M19.35 1.65 19.74 2.62 20.8 2.72 20 3.52 20.2 4.58 19.35 4.08 18.5 4.58 18.7 3.52 17.9 2.72 18.96 2.62Z"
+  />
+</svg>

@@ -5,6 +5,7 @@
   "version": "0.9.3",
   "publisher": "vedanthvdev",
   "license": "MIT",
+  "icon": "media/commit-dock.svg",
   "repository": {
     "type": "git",
     "url": "https://github.com/vedanthvdev/commit-dock.git"
@@ -46,7 +47,7 @@
         {
           "id": "commit-dock",
           "title": "Commit Dock",
-          "icon": "media/dock.svg"
+          "icon": "media/commit-dock.svg"
         }
       ]
     },
@@ -146,6 +147,7 @@
     "@vscode/vsce": "^3.9.1",
     "esbuild": "^0.25.12",
     "eslint": "^8.57.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.6"
   }
 }

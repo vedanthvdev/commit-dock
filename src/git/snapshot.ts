@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { API, Change, Repository } from './git-api';
 import { Status } from './git-api';
 import type { RepoSnapshot, SnapshotFile, SnapshotGroupId } from '../protocol';
+import { fileCodiconFromPath } from './file-codicons';
 
 export function pickPrimaryRepository(api: API): Repository | undefined {
   const editor = vscode.window.activeTextEditor;
@@ -241,6 +242,7 @@ function toFile(
     status: change.status,
     statusLabel: statusLabel(change.status),
     group,
+    fileIcon: { kind: 'codicon', classes: fileCodiconFromPath(path) },
     codicon: codiconForStatus(group, change.status),
     selected: !deselected.has(path),
   };

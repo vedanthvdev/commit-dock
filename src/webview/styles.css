@@ -206,6 +206,47 @@ body {
   line-height: 1.35;
 }
 
+.file-list__file-icon {
+  flex: 0 0 auto;
+  line-height: 1;
+}
+
+.file-list__file-icon:not(.file-list__file-icon--theme-font):not(.file-list__file-icon--theme-img) {
+  font-size: 1.05em;
+  color: var(--vscode-icon-foreground);
+}
+
+.file-list__file-icon--theme-font {
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.file-list__file-icon--theme-img {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-list__file-icon-img {
+  width: 1.15em;
+  height: 1.15em;
+  display: block;
+  object-fit: contain;
+}
+
+.file-list__conflict-icon {
+  flex: 0 0 auto;
+  font-size: 1em;
+  line-height: 1;
+  opacity: 0.95;
+}
+
+.changes__group--amend-head .file-list__file-icon:not(.file-list__file-icon--theme-font):not(.file-list__file-icon--theme-img) {
+  color: var(--vscode-icon-foreground);
+}
+
 .file-list__row--clickable {
   cursor: pointer;
 }

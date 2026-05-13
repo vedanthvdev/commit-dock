@@ -1,4 +1,4 @@
-import { PROTOCOL_VERSION, type HostToWebviewMessage, type RepoSnapshot, type StashSnapshotEntry } from '../protocol';
+import { PROTOCOL_VERSION, type FileIconFontFace, type HostToWebviewMessage, type RepoSnapshot, type SnapshotFileIcon, type StashSnapshotEntry } from '../protocol';
 import './styles.css';
 
 declare global {
@@ -8,6 +8,8 @@ declare global {
       getState: () => unknown;
       setState: (s: unknown) => void;
     };
+    /** Set by host HTML so dynamically injected @font-face styles satisfy `style-src` nonce CSP. */
+    __commitDockCspNonce?: string;
   }
 }
 
@@ -17,6 +19,72 @@ type PersistedUiState = {
   commitAmend?: boolean;
   commitDockTab?: 'commit' | 'stash';
 };
+
+let lastInjectedFontKey = '';
+
+function ensureFileIconFonts(fonts: readonly FileIconFontFace[] | undefined): void {
+  const key = fonts?.map((f) => `${f.cssFamily}|${f.src}|${f.format ?? ''}`).join(';') ?? '';
+  if (!key) {
+    if (lastInjectedFontKey) {
+      lastInjectedFontKey = '';
+      document.querySelectorAll('style[data-commit-dock-icon-fonts="1"]').forEach((n) => n.remove());
+    }
+    return;
+  }
+  if (key === lastInjectedFontKey) {
+    return;
+  }
+  if (!fonts?.length) {
+    return;
+  }
+  lastInjectedFontKey = key;
+  document.querySelectorAll('style[data-commit-dock-icon-fonts="1"]').forEach((n) => n.remove());
+  const css = fonts
+    .map(
+      (f) =>
+        `@font-face{font-family:'${f.cssFamily}';src:url(${JSON.stringify(f.src)}) format('${f.format ?? 'woff'}');font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};}`,
+    )
+    .join('\n');
+  const el = document.createElement('style');
+  el.dataset.commitDockIconFonts = '1';
+  const cspNonce = window.__commitDockCspNonce;
+  if (cspNonce) {
+    el.setAttribute('nonce', cspNonce);
+  }
+  el.textContent = css;
+  document.head.appendChild(el);
+}
+
+function appendFileIcon(parent: HTMLElement, icon: SnapshotFileIcon): void {
+  const span = document.createElement('span');
+  span.className = 'file-list__file-icon';
+  span.setAttribute('aria-hidden', 'true');
+
+  if (icon.kind === 'themeFont') {
+    span.classList.add('file-list__file-icon--theme-font');
+    span.style.color = icon.color;
+    // Match @font-face family tokens; literal quotes in the DOM value break font matching.
+    span.style.fontFamily = `${icon.family}, monospace`;
+    span.style.fontSize = icon.fontSize?.trim() ? icon.fontSize : '150%';
+    span.textContent = String.fromCodePoint(icon.codePoint);
+    parent.appendChild(span);
+    return;
+  }
+
+  if (icon.kind === 'themeImage') {
+    span.classList.add('file-list__file-icon--theme-img');
+    const img = document.createElement('img');
+    img.src = icon.src;
+    img.alt = '';
+    img.className = 'file-list__file-icon-img';
+    span.appendChild(img);
+    parent.appendChild(span);
+    return;
+  }
+
+  span.className = `file-list__file-icon ${icon.classes}`.trim();
+  parent.appendChild(span);
+}
 
 function main(): void {
   const vscodeApiRaw = window.acquireVsCodeApi?.();
@@ -689,6 +757,7 @@ function renderRepoSnapshot(
 
   changes.hidden = false;
   changes.replaceChildren();
+  ensureFileIconFonts(snapshot.fileIconFonts);
 
   if (!changes.dataset.commitDockHotkeys) {
     changes.dataset.commitDockHotkeys = '1';
@@ -804,11 +873,14 @@ function renderRepoSnapshot(
             });
           });
           li.appendChild(cb);
+        } else {
+          const conflict = document.createElement('span');
+          conflict.className = `file-list__conflict-icon ${file.codicon}`;
+          conflict.setAttribute('aria-hidden', 'true');
+          li.appendChild(conflict);
         }
 
-        const icon = document.createElement('span');
-        icon.className = file.codicon;
-        icon.setAttribute('aria-hidden', 'true');
+        appendFileIcon(li, file.fileIcon);
 
         const name = document.createElement('span');
         name.className = 'file-list__name';
@@ -818,7 +890,7 @@ function renderRepoSnapshot(
         meta.className = 'file-list__meta';
         meta.textContent = file.statusLabel;
 
-        li.append(icon, name, meta);
+        li.append(name, meta);
         attachOpenDiffOnRowClick(li, file.path, vscodeApi);
         list.appendChild(li);
       }
@@ -850,10 +922,11 @@ function renderRepoSnapshot(
     for (const f of snapshot.amendHeadFiles) {
       const li = document.createElement('li');
       li.className = 'file-list__row file-list__row--amend-head';
+      appendFileIcon(li, f.fileIcon);
       const name = document.createElement('span');
       name.className = 'file-list__name';
       name.textContent = f.relPath;
-      li.appendChild(name);
+      li.append(name);
       attachOpenDiffOnRowClick(li, f.path, vscodeApi);
       list.appendChild(li);
     }
