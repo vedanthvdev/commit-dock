@@ -9,6 +9,7 @@ import { registerMergeConflictDiffCommands } from './merge-conflict-diff-command
 import { registerMergeToolCommands } from './merge-tool-commands';
 import { registerPullCommands } from './pull-commands';
 import { registerRecentCommitsCommands } from './recent-commits-commands';
+import { registerRemoteCommands } from './remote-commands';
 import { registerStashCommands } from './stash-commands';
 import { registerStatusCommands } from './status-commands';
 import { registerWorkspaceCommands } from './workspace-commands';
@@ -17,6 +18,7 @@ import { CommitWebviewProvider } from './views/commitWebviewProvider';
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   registerBranchCommands(context);
   registerFetchCommands(context);
+  registerRemoteCommands(context);
   registerGraphCommands(context);
   registerCompareCommands(context);
   registerDiffStatCommands(context);

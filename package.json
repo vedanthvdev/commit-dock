@@ -50,6 +50,7 @@
     "onCommand:commitDock.showRecentCommits",
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
+    "onCommand:commitDock.showGitRemotes",
     "onCommand:commitDock.showShortGitStatus",
     "onCommand:commitDock.showWorkingTreeDiffStat",
     "onCommand:commitDock.compareWorkingTreeWithRef",
@@ -157,6 +158,11 @@
       {
         "command": "commitDock.fetchAndRefresh",
         "title": "Fetch Remotes and Refresh Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.showGitRemotes",
+        "title": "Show Git Remotes (Output)",
         "category": "Commit Dock"
       },
       {
