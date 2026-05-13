@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **16**).
+- **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **17**).
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
 - **Stash:** palette **Stash Working Tree (with message)…** creates a stash (including unversioned files) using the same helper as Quick stash, with an editable default message.
@@ -18,17 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Remote sync:** palette **Pull (Fast-Forward Only)** runs `git pull --ff-only` when the working tree is clean, surfacing combined stdout/stderr in a short toast.
 - **Remote sync:** palette **Fetch Remotes and Refresh Commit View** runs `git fetch --all --prune` for the primary repository, then triggers **Refresh Commit View** on success.
 - **Compare:** palette **Compare Working Tree with Ref (name-status)…** prints `git diff --name-status <ref>...HEAD` to a **Commit Dock: Compare** output channel (read-only, bounded output).
-- **Workspace:** palette **Copy Active Editor Relative Path**
-- **Workspace:** palette **Reveal Primary Repository in OS**
+- **Workspace:** palette **Copy Active Editor Relative Path** copies `workspace.asRelativePath` for the current file editor when it is a `file:` URI under the open workspace.
+- **Workspace:** palette **Reveal Primary Repository in OS** opens the OS file manager at the primary repository root via the built-in `revealFileInOS` command.
 - **Workspace:** palette **Open Terminal at Primary Repository** creates a new integrated terminal with `cwd` set to the primary repository root.
- opens the OS file manager at the primary repository root via the built-in `revealFileInOS` command.
- copies `workspace.asRelativePath` for the current file editor when it is a `file:` URI under the open workspace.
+- **Commit message:** palette **Insert Recent Commit Subject…** quick-picks recent `git log` subjects and inserts them into the Commit Dock message field (host→webview `commitMessageInsert`, protocol **17**).
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
 - **History:** palette **Revert Commit…** runs `git revert --no-edit` after a modal confirm, with the same clean-tree guard as cherry-pick.
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
-- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **16**) so the webview can hide **Commit and Push** without a reload.
+- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **17**) so the webview can hide **Commit and Push** without a reload.
 - **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
 - **External merge tool:** **`commitDock.externalMergeToolPath`** plus **Open External Merge Tool for Conflict…** (palette) launches a user-provided merge tool with one conflict path argument (no shell).
 - **Change list:** change groups now insert lightweight **directory subheaders** (first path segment) while preserving per-row selection and conflict affordances.
@@ -36,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Protocol:** host↔webview version is now **16** (new webview→host message for the merge-conflict banner shortcut).
+- **Protocol:** host↔webview version is now **17** (adds host→webview `commitMessageInsert` for recent commit subjects).
 - **Docs:** clarify that Marketplace **`/items?itemName=…`** pages can 404 in a browser even when `vsce show` succeeds; document `vscode:extension/…` and `@id:…` install paths.
 - **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
 - **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
