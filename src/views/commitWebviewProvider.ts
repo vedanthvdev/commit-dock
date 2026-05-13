@@ -172,10 +172,18 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           const root = repo.rootUri.fsPath;
           const set = this._getOrCreateDeselectedSet(root);
 
+          const selectablePaths =
+            msg.type === 'setPathSelected' || msg.type === 'selectAll' || msg.type === 'deselectAll'
+              ? new Set(getAllSelectablePaths(repo))
+              : undefined;
+
           if (msg.type === 'setPathSelected') {
             const p = msg.payload.path;
             const selected = msg.payload.selected;
-            if (!this._isSelectablePath(repo, p)) {
+            if (!selectablePaths) {
+              return;
+            }
+            if (!selectablePaths.has(p)) {
               return;
             }
             if (selected) {
@@ -203,7 +211,10 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           }
 
           if (msg.type === 'selectAll') {
-            for (const p of getAllSelectablePaths(repo)) {
+            if (!selectablePaths) {
+              return;
+            }
+            for (const p of selectablePaths) {
               set.delete(p);
             }
             this._postSnapshotImmediate(repo);
@@ -211,7 +222,10 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           }
 
           if (msg.type === 'deselectAll') {
-            for (const p of getAllSelectablePaths(repo)) {
+            if (!selectablePaths) {
+              return;
+            }
+            for (const p of selectablePaths) {
               set.add(p);
             }
             this._postSnapshotImmediate(repo);
@@ -722,12 +736,16 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _openDiffForPath(repo: Repository, fsPath: string): Promise<void> {
-    const normPath = path.normalize(fsPath);
-    const normRoot = path.normalize(repo.rootUri.fsPath);
-    if (normPath !== normRoot && !normPath.startsWith(`${normRoot}${path.sep}`)) {
+    if (fsPath.includes('\0')) {
       return;
     }
-    const uri = vscode.Uri.file(normPath);
+    const rootResolved = path.resolve(repo.rootUri.fsPath);
+    const abs = path.resolve(fsPath);
+    const rel = path.relative(rootResolved, abs);
+    if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) {
+      return;
+    }
+    const uri = vscode.Uri.file(abs);
     try {
       await vscode.commands.executeCommand('git.openChange', uri);
     } catch {
@@ -883,10 +901,6 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         set.delete(p);
       }
     }
-  }
-
-  private _isSelectablePath(repo: Repository, p: string): boolean {
-    return new Set(getAllSelectablePaths(repo)).has(p);
   }
 
   private async _ensureRepoSubscription(api: API | undefined): Promise<void> {
@@ -1099,6 +1113,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         >
           <p id="repo" class="repo repo--ellipsis" hidden></p>
           <section id="changes" class="changes changes--scroll" hidden tabindex="-1"></section>
+          <div
+            id="commit-footer-sash"
+            class="commit-dock-footer-sash"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label="Resize commit message area"
+            tabindex="0"
+          ></div>
           <footer id="commit-panel" class="commit-dock-footer">
             <label class="sr-only" for="commit-message">Commit message</label>
             <div class="commit-dock-footer__row commit-dock-footer__row--amend">

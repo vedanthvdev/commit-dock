@@ -153,8 +153,45 @@ body {
 }
 
 #tab-panel-commit > .changes.changes--scroll {
-  flex: 3 1 0;
+  flex: 1 1 0;
   min-height: 72px;
+}
+
+/* Draggable boundary between file list and commit footer; height set in JS (--commit-footer-height). */
+#tab-panel-commit {
+  --commit-footer-height: 200px;
+}
+
+.commit-dock-footer-sash {
+  flex: 0 0 6px;
+  margin: 0;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+  position: relative;
+  background: transparent;
+}
+
+.commit-dock-footer-sash::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: var(--vscode-widget-border, rgba(128, 128, 128, 0.35));
+  pointer-events: none;
+}
+
+.commit-dock-footer-sash:hover::after,
+.commit-dock-footer-sash:focus-visible::after {
+  background: var(--vscode-focusBorder, var(--vscode-textLink-foreground));
+}
+
+.commit-dock-footer-sash:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
 }
 
 .changes--scroll {
@@ -258,7 +295,7 @@ body {
 .commit-dock-footer {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
   margin-top: 4px;
   padding-top: 10px;
@@ -267,14 +304,17 @@ body {
 }
 
 #tab-panel-commit > .commit-dock-footer {
-  flex: 2 1 0;
-  min-height: 140px;
+  flex: 0 0 var(--commit-footer-height, 200px);
+  min-height: 0;
+  max-height: min(78vh, 720px);
   margin-top: 0;
-  padding-top: 8px;
+  padding-top: 6px;
+  border-top: none;
+  overflow: hidden;
 }
 
 .commit-dock-footer__message-slot {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -283,9 +323,9 @@ body {
 .commit-dock-footer__textarea {
   width: 100%;
   box-sizing: border-box;
-  flex: 1 1 auto;
-  resize: vertical;
-  min-height: 96px;
+  flex: 1 1 0;
+  resize: none;
+  min-height: 0;
   max-height: none;
   padding: 6px 8px;
   color: var(--vscode-input-foreground);
@@ -313,26 +353,30 @@ body {
 }
 
 .commit-dock-footer__row--actions {
-  gap: 8px;
-  margin-top: 2px;
+  gap: 6px;
+  margin-top: 0;
 }
 
-/* Commit footer: one visual system for Commit, Commit & Push, and Push (FWL) */
+#commit-panel .action-status {
+  flex: 0 0 auto;
+}
+
+/* Commit footer actions: compact row — Commit + Commit&Push on one line, FWL full width below. */
 .commit-dock-footer .commit-dock-footer__row--actions .selection-toolbar__btn {
   appearance: none;
   margin: 0;
-  min-height: 2.5rem;
+  min-height: 1.625rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   line-height: 1.2;
-  white-space: normal;
-  padding: 8px 12px;
-  border-radius: 8px;
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 4px;
   box-sizing: border-box;
   font: inherit;
-  font-size: calc(var(--vscode-font-size) * 0.94);
+  font-size: calc(var(--vscode-font-size) * 0.8);
   font-weight: 500;
   cursor: pointer;
   background: transparent;
@@ -352,19 +396,21 @@ body {
 
 .commit-dock-footer__row--primary {
   flex-wrap: nowrap;
-  gap: 8px;
+  gap: 6px;
   align-items: stretch;
+  min-width: 0;
 }
 
 .commit-dock-footer__row--primary .selection-toolbar__btn {
   flex: 1 1 0;
   min-width: 0;
-  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .commit-dock-footer__row--secondary {
-  margin-top: 6px;
-  gap: 8px;
+  margin-top: 2px;
+  gap: 6px;
   justify-content: stretch;
 }
 
@@ -372,6 +418,8 @@ body {
   flex: 1 1 auto;
   width: 100%;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .commit-dock-footer .commit-dock-footer__row--actions .selection-toolbar__btn.selection-toolbar__btn--danger {
