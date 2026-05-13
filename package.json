@@ -45,7 +45,8 @@
     "onCommand:commitDock.cherryPickCommit",
     "onCommand:commitDock.revertCommit",
     "onCommand:commitDock.stashWithMessage",
-    "onCommand:commitDock.showRecentCommits"
+    "onCommand:commitDock.showRecentCommits",
+    "onCommand:commitDock.pullFastForwardOnly"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -124,6 +125,11 @@
       {
         "command": "commitDock.showRecentCommits",
         "title": "Show Recent Commits (Output)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.pullFastForwardOnly",
+        "title": "Pull (Fast-Forward Only)",
         "category": "Commit Dock"
       },
       {
