@@ -82,6 +82,22 @@ body {
   cursor: default;
 }
 
+.commit-panel__row--check {
+  align-items: flex-start;
+}
+
+.commit-panel__check {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: calc(var(--vscode-font-size) * 0.95);
+}
+
+.commit-panel__check input {
+  margin-top: 3px;
+}
+
 .selection-toolbar {
   display: flex;
   gap: 8px;

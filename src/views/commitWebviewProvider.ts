@@ -105,6 +105,9 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           if (msg.type === 'commit') {
             this._postCommitResult(false, 'No Git repository is active.');
           }
+          if (msg.type === 'requestHeadCommitMessage') {
+            this._postHeadCommitMessage(false, undefined, 'No Git repository is active.');
+          }
           return;
         }
 
@@ -174,7 +177,12 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         }
 
         if (msg.type === 'commit') {
-          await this._commit(repo, set, msg.payload.message);
+          await this._commit(repo, set, msg.payload.message, msg.payload.amend === true);
+          return;
+        }
+
+        if (msg.type === 'requestHeadCommitMessage') {
+          await this._sendHeadCommitMessage(repo);
           return;
         }
       }),
@@ -343,17 +351,64 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     void view.webview.postMessage(msg);
   }
 
-  private async _commit(repo: Repository, set: Set<string>, message: string): Promise<void> {
-    const trimmed = message.trim();
-    if (!trimmed) {
-      this._postCommitResult(false, 'Enter a commit message.');
+  private _postHeadCommitMessage(ok: boolean, message?: string, detail?: string): void {
+    const view = this._view;
+    if (!view) {
       return;
     }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'headCommitMessage',
+      payload: { ok, message, detail },
+    };
+    void view.webview.postMessage(msg);
+  }
+
+  private async _sendHeadCommitMessage(repo: Repository): Promise<void> {
+    try {
+      const ref = repo.state.HEAD?.commit;
+      if (!ref) {
+        this._postHeadCommitMessage(false, undefined, 'There is no commit to amend.');
+        return;
+      }
+      const commit = await repo.getCommit(ref);
+      const message = commit.message.replace(/\r\n/g, '\n');
+      this._postHeadCommitMessage(true, message, undefined);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      this._postHeadCommitMessage(false, undefined, detail);
+    }
+  }
+
+  private async _commit(repo: Repository, set: Set<string>, message: string, amend: boolean): Promise<void> {
     if (repo.state.mergeChanges.length > 0) {
       this._postCommitResult(false, 'Resolve merge conflicts before committing.');
       void vscode.window.showErrorMessage('Commit Dock: resolve merge conflicts before committing.');
       return;
     }
+
+    let body = message.trim();
+    if (amend && !body) {
+      const ref = repo.state.HEAD?.commit;
+      if (!ref) {
+        this._postCommitResult(false, 'There is no commit to amend.');
+        return;
+      }
+      try {
+        const head = await repo.getCommit(ref);
+        body = head.message.replace(/\r\n/g, '\n').trimEnd();
+      } catch (err) {
+        this._showGitError('Load HEAD commit', err);
+        this._postCommitResult(false, err instanceof Error ? err.message : String(err));
+        return;
+      }
+    }
+
+    if (!body) {
+      this._postCommitResult(false, 'Enter a commit message.');
+      return;
+    }
+
     try {
       const toUnstage = pathsStagedAndDeselected(repo, set);
       if (toUnstage.length) {
@@ -364,12 +419,12 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       if (toStage.length) {
         await repo.add(toStage);
       }
-      if (repo.state.indexChanges.length === 0) {
+      if (!amend && repo.state.indexChanges.length === 0) {
         this._postCommitResult(false, 'Nothing to commit (index is empty).');
         void vscode.window.showInformationMessage('Commit Dock: nothing to commit.');
         return;
       }
-      await repo.commit(trimmed);
+      await repo.commit(body, amend ? { amend: true } : undefined);
     } catch (err) {
       this._showGitError('Commit', err);
       this._postCommitResult(false, err instanceof Error ? err.message : String(err));
@@ -615,6 +670,12 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       <section id="commit-panel" class="commit-panel" hidden>
         <label class="commit-panel__label" for="commit-message">Commit message</label>
         <textarea id="commit-message" class="commit-panel__textarea" rows="4" spellcheck="true" placeholder="Describe your changes"></textarea>
+        <div class="commit-panel__row commit-panel__row--check">
+          <label class="commit-panel__check" for="commit-amend">
+            <input type="checkbox" id="commit-amend" />
+            <span>Amend previous commit</span>
+          </label>
+        </div>
         <div class="commit-panel__row">
           <button type="button" id="commit-submit" class="selection-toolbar__btn selection-toolbar__btn--primary">Commit</button>
         </div>

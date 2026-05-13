@@ -13,10 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 5: Amend + message defaulting from HEAD.
 - Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.6.0] - 2026-05-13
+
+### Added
+
+- **Phase 5 — Amend:** **Amend previous commit** checkbox (persisted), **`commit(..., { amend: true })`**, and **HEAD message** loading via **`requestHeadCommitMessage`** / **`headCommitMessage`** (protocol **v6**). Empty message with amend reuses the current HEAD message; **empty index** no longer blocks amend-only workflows.
 
 ## [0.5.0] - 2026-05-13
 
@@ -80,7 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...v0.3.0
