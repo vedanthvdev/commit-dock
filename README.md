@@ -2,7 +2,7 @@
 
 **Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
 
-> **Status:** current release is **`v0.9.1`** (release pipeline: GitHub Releases no longer blocked by Marketplace secret). See [CHANGELOG.md](CHANGELOG.md).
+> **Status:** current release is **`v0.9.2`** (hardening, CI typecheck, dependency refresh). See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -41,15 +41,24 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 - **Stash list** runs `git stash list` with the `git` on your **`PATH`** for that folder; it is independent of VS Code’s bundled Git path.
 - **Merge conflicts** must be resolved with your usual tools; Commit Dock surfaces conflicted paths and blocks commit/push while conflicts exist.
 
+## Security notes
+
+- **Webview messages** are validated in the extension host (`parseWebviewMessage`): unknown types, wrong `protocolVersion`, oversized commit bodies, oversized paths, and absurd stash indices are rejected before touching Git.
+- **Stash listing** runs `git` via `execFile` with a **fixed argument list** (no shell), `shell: false`, and only after the repo root is checked to be a **normal directory** on disk. Output is capped to avoid pathological lists.
+- **Trust:** treat this extension like other Git UI: it can **stage, commit, push, discard, and stash** in folders you open. Use only in workspaces you trust.
+- **Dependencies:** run `npm audit` periodically; CI uses **`npm ci`** for reproducible installs.
+
 ## Development
 
 The default Git branch for this repository is **`master`**.
 
 ```bash
 git checkout master
-npm install
+npm ci
 npm run compile   # or npm run watch
-npm run package   # produces .vsce / vsce package
+npm run typecheck # strict TypeScript (no emit)
+npm run lint
+npm run package   # produces .vsix
 ```
 
 Press **F5** in VS Code or Cursor to launch the **Extension Development Host**. Open the **Commit Dock** icon in the activity bar and run through stage, commit, push, and stash against a sample repo.

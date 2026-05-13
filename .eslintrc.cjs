@@ -15,6 +15,8 @@ module.exports = {
   },
   rules: {
     '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    eqeqeq: ['error', 'smart'],
+    'no-throw-literal': 'error',
   },
   ignorePatterns: ['dist/', 'node_modules/', 'src/git/vscode.git.d.ts'],
 };

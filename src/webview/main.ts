@@ -76,12 +76,12 @@ function main(): void {
     if (refresh) {
       refresh.disabled = busy || !hasRepo || !lastGitOk;
     }
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.stash-list__action')) {
+    for (const btn of Array.from(document.querySelectorAll<HTMLButtonElement>('.stash-list__action'))) {
       btn.disabled = busy;
     }
   }
 
-  function persistCommitUi(): void {
+  const persistCommitUi = (): void => {
     if (!textarea) {
       return;
     }
@@ -91,17 +91,19 @@ function main(): void {
       commitDraft: textarea.value,
       commitAmend: amendCb?.checked ?? false,
     });
-  }
+  };
 
-  let draftTimer: ReturnType<typeof setTimeout> | undefined;
+  let draftTimer: number | undefined;
   function onCommitInput(): void {
-    if (draftTimer) {
+    if (draftTimer !== undefined) {
       window.clearTimeout(draftTimer);
     }
-    draftTimer = window.setTimeout(() => persistCommitUi(), 250);
+    draftTimer = window.setTimeout(() => {
+      persistCommitUi();
+    }, 250);
   }
 
-  function submitCommit(): void {
+  const submitCommit = (): void => {
     if (!textarea || !commitBtn || commitBtn.disabled || committing || pushing || stashBusy) {
       return;
     }
@@ -124,7 +126,7 @@ function main(): void {
       type: 'commit',
       payload: { message: textarea.value, amend },
     });
-  }
+  };
 
   if (textarea && commitBtn) {
     const persisted = vscodeApi.getState() as PersistedUiState | undefined;
@@ -491,7 +493,7 @@ function renderRepoSnapshot(
       const selectedCount = group.files.filter((f) => f.selected).length;
       cb.checked = count > 0 && selectedCount === count;
       cb.indeterminate = selectedCount > 0 && selectedCount < count;
-      cb.addEventListener('click', (e) => e.stopPropagation());
+      cb.addEventListener('click', (e: MouseEvent) => e.stopPropagation());
       cb.addEventListener('change', () => {
         vscodeApi.postMessage({
           protocolVersion: PROTOCOL_VERSION,

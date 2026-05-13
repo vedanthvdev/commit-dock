@@ -13,8 +13,8 @@ export function getSnapshotDebounceMs(): number {
 
 /** When false, discard runs without a confirmation modal. */
 export function getConfirmBeforeDiscard(): boolean {
-  return (
-    vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION).get<boolean>('confirmBeforeDiscard', true) !==
-    false
-  );
+  const v = vscode.workspace
+    .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
+    .get<boolean>('confirmBeforeDiscard');
+  return v !== false;
 }
