@@ -231,10 +231,22 @@ function headDisplayLabel(head: Branch | undefined): string | undefined {
   if (!head?.commit) {
     return undefined;
   }
-  if (head.name) {
-    return head.name;
+  const base = head.name ? head.name : `detached @ ${head.commit.slice(0, 7)}`;
+  const a = head.ahead;
+  const b = head.behind;
+  const hasA = typeof a === 'number' && a > 0;
+  const hasB = typeof b === 'number' && b > 0;
+  if (hasA || hasB) {
+    const bits: string[] = [];
+    if (hasA) {
+      bits.push(`↑${a}`);
+    }
+    if (hasB) {
+      bits.push(`↓${b}`);
+    }
+    return `${base} ${bits.join(' ')}`;
   }
-  return `detached @ ${head.commit.slice(0, 7)}`;
+  return base;
 }
 
 export function buildRepoSnapshot(repo: Repository, deselected: ReadonlySet<string>): RepoSnapshot {

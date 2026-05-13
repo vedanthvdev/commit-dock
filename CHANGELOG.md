@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Repository chrome:** snapshots now include **`headLabel`** (branch name or `detached @ …`) shown beside the repo folder in the Commit webview; protocol **16**.
+- **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **16**).
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
 - **Stash:** palette **Stash Working Tree (with message)…** creates a stash (including unversioned files) using the same helper as Quick stash, with an editable default message.
