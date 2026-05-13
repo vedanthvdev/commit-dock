@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Marketplace:** set `package.json` **`publisher`** to **`VedanthVasuDev`** so it matches the Visual Studio Marketplace publisher id (was `vedanthvdev`, which did not match the manage URL and blocked a public listing under your publisher).
+- **Docs:** clarify that Marketplace **`/items?itemName=…`** pages can 404 in a browser even when `vsce show` succeeds; document `vscode:extension/…` and `@id:…` install paths.
 - **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
 - **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
 - GitHub **default branch** is now **`master`** (was `main`). CI runs on pushes and PRs targeting `master`.
@@ -17,12 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
-
-## [0.9.7] - 2026-05-13
-
-### Changed
-
-- [#25](https://github.com/vedanthvdev/commit-dock/pull/25): COMMITDOCK-27: Align Marketplace publisher with VedanthVasuDev
 
 ## [0.9.6] - 2026-05-13
 

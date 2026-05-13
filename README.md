@@ -106,10 +106,17 @@ You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the 
 
 The **Release** workflow runs **`vsce publish`** only when the repository secret **`VSCE_PAT`** is set. If that secret is missing, the run still builds the VSIX and updates the **GitHub Release**, but you will see a notice that Marketplace publish was skipped (this is what happened for **`v0.9.6`** until `VSCE_PAT` exists).
 
-1. **Publisher** — `package.json` **`"publisher"`** must match your Marketplace publisher id **exactly** (case-sensitive), including in the manage URL path. This repo uses **`VedanthVasuDev`** ([publisher manage page](https://marketplace.visualstudio.com/manage/publishers/VedanthVasuDev)). The public extension URL is then `https://marketplace.visualstudio.com/items?itemName=VedanthVasuDev.commit-dock` (open in a normal browser; bare `curl -I` often returns a misleading 404). If you have not created a publisher yet, use [Manage publishers & extensions](https://marketplace.visualstudio.com/manage) → **Create publisher**.
+1. **Publisher** — `package.json` **`"publisher"`** must match your Marketplace publisher id **exactly** (case-sensitive), including in the manage URL path. This repo uses **`VedanthVasuDev`** ([publisher manage page](https://marketplace.visualstudio.com/manage/publishers/VedanthVasuDev)). If you have not created a publisher yet, use [Manage publishers & extensions](https://marketplace.visualstudio.com/manage) → **Create publisher**.
+
+**Public web URL (`/items?itemName=…`)** — Microsoft’s Marketplace site sometimes returns **“404 – Page not found”** for a valid extension while the CLI still resolves it (`npx vsce show VedanthVasuDev.commit-dock`). That does **not** mean the upload failed. Prefer the links below for sharing and installs.
+
+- **Open in VS Code / Cursor:** `vscode:extension/VedanthVasuDev.commit-dock` (paste into the browser address bar, or use **Open URL** from the Command Palette inside the editor).
+- **From the Extensions view:** paste **`@id:VedanthVasuDev.commit-dock`** in the search box, then install.
+- **Canonical item URL (may still 404 in a browser):** `https://marketplace.visualstudio.com/items?itemName=VedanthVasuDev.commit-dock`
+- **Publisher hub (sign in):** [extension hub](https://marketplace.visualstudio.com/manage/publishers/VedanthVasuDev/extensions/commit-dock/hub) — use the same Microsoft account as your Marketplace PAT.
 2. **Personal access token** — Create a PAT with scope **Marketplace → Manage** (Azure DevOps). Official steps: [Get a Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token).
 3. **GitHub secret** — In this repo: **Settings → Secrets and variables → Actions → New repository secret** → name **`VSCE_PAT`**, value = the PAT.
-4. **Publish** — **Actions → Release → Run workflow** and set **tag** to a tag whose `package.json` already has the right **`publisher`** (the workflow checks out that tag). After this fix lands on `master`, prefer the **latest** `v*` tag (e.g. **`v0.9.7`** once the post-merge bump runs), not an older tag that still points at a commit with the wrong publisher.
+4. **Publish** — **Actions → Release → Run workflow** and set **tag** to a tag whose `package.json` already has the right **`publisher`** (the workflow checks out that tag). Use the **latest** `v*` tag on `master` (for example **`v0.9.7`**), not an older tag whose `package.json` is stale.
 
 **Publish from your machine** (same PAT in the environment):
 
