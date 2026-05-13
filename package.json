@@ -147,6 +147,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Show a numeric badge on the **Commit Dock** activity bar icon when the primary repository has pending changes (merge conflicts, staged, unstaged, or unversioned paths)."
+        },
+        "commitDock.showCommitAndPushButton": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Show **Commit and Push** in the Commit webview. Turn off if you prefer to commit and push in two explicit steps only."
         }
       }
     }

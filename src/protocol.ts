@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 13;
+export const PROTOCOL_VERSION = 14;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -73,6 +73,11 @@ export interface StashSnapshotEntry {
 export type HostToWebviewMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'hello'; payload: { message: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'gitStatus'; payload: { ok: boolean; detail?: string } }
+  | {
+      protocolVersion: typeof PROTOCOL_VERSION;
+      type: 'uiPreferences';
+      payload: { showCommitAndPush: boolean };
+    }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'repoSnapshot'; payload: RepoSnapshot }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitResult'; payload: { ok: boolean; detail?: string } }
   | {
