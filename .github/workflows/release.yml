@@ -101,7 +101,7 @@ jobs:
           TAG_NAME: ${{ steps.rel_tag.outputs.name }}
         run: |
           if [ -z "${VSCE_PAT}" ]; then
-            echo "::notice::VSCE_PAT is not set — skipping Marketplace publish. The GitHub Release with the VSIX is already available."
+            echo "::notice::VSCE_PAT is not set — skipping Marketplace publish. Add the repository secret VSCE_PAT (Marketplace → Manage PAT), then re-run this workflow for the tag. See README → VS Code Marketplace."
             exit 0
           fi
           VSIX="$(ls -1 ./*.vsix | head -n1)"

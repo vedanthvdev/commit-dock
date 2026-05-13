@@ -102,11 +102,25 @@ This flow follows the same **“exactly one `semver:*` label”** idea as [dayse
 
 You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master`. That **tag push** may start **Release** on its own; if it does not, run **Release** manually for that tag.
 
-### Marketplace secret
+### VS Code Marketplace
 
-Add **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope) if you want **`vsce publish`**. Without it, the **GitHub Release** is still created.
+The **Release** workflow runs **`vsce publish`** only when the repository secret **`VSCE_PAT`** is set. If that secret is missing, the run still builds the VSIX and updates the **GitHub Release**, but you will see a notice that Marketplace publish was skipped (this is what happened for **`v0.9.6`** until `VSCE_PAT` exists).
 
-**If older tags never created a Release**, use **Run workflow** on **Release** for that tag, or merge another PR with the appropriate **`semver:*`** label so automation runs again.
+1. **Publisher** — `package.json` uses **`"publisher": "vedanthvdev"`**. If you have not created that publisher yet, sign in at [Visual Studio Marketplace — Manage publishers & extensions](https://marketplace.visualstudio.com/manage) and create it (same id as in `package.json`).
+2. **Personal access token** — Create a PAT with scope **Marketplace → Manage** (Azure DevOps). Official steps: [Get a Personal Access Token](https://code.visualstudio.com/api/working-with-extensions/publishing-extension#get-a-personal-access-token).
+3. **GitHub secret** — In this repo: **Settings → Secrets and variables → Actions → New repository secret** → name **`VSCE_PAT`**, value = the PAT.
+4. **Publish the current release** — **Actions → Release → Run workflow**, set **tag** to the existing tag (e.g. **`v0.9.6`**), run. The **Publish to Visual Studio Marketplace** step will upload that build.
+
+**Publish from your machine** (same PAT in the environment):
+
+```bash
+export VSCE_PAT="***"   # Marketplace (Manage) token
+npm ci && npm run publish:marketplace
+```
+
+That runs `vscode:prepublish` (production build) then `vsce publish` for the version in `package.json`.
+
+**If older tags never hit the Marketplace**, run **Release** manually for that tag after `VSCE_PAT` is configured, or ship a new version from `master` with the normal **`semver:*`** merge flow.
 
 ## Versioning
 

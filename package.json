@@ -136,7 +136,8 @@
     "typecheck": "tsc -p .",
     "test": "vitest run",
     "vscode:prepublish": "npm run build",
-    "package": "vsce package"
+    "package": "vsce package",
+    "publish:marketplace": "vsce publish --no-dependencies"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
