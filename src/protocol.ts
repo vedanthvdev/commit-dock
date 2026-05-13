@@ -76,6 +76,12 @@ export type WebviewToHostMessage =
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
+/** Reject absurd stash indices from the webview (Git stash counts are bounded in practice). */
+const MAX_STASH_INDEX = 9_999;
+
+/** Absolute paths from the webview must stay within reasonable length limits. */
+const MAX_PATH_CHARS = 8192;
+
 export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undefined {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     return undefined;
@@ -114,7 +120,7 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
       return undefined;
     }
     const index = (payload as { index?: unknown }).index;
-    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0) {
+    if (typeof index !== 'number' || !Number.isInteger(index) || index < 0 || index > MAX_STASH_INDEX) {
       return undefined;
     }
     return { protocolVersion: PROTOCOL_VERSION, type: msg.type, payload: { index } };
@@ -157,7 +163,7 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
     }
     const path = (payload as { path?: unknown }).path;
     const selected = (payload as { selected?: unknown }).selected;
-    if (typeof path !== 'string' || path.length === 0) {
+    if (typeof path !== 'string' || path.length === 0 || path.length > MAX_PATH_CHARS || path.includes('\0')) {
       return undefined;
     }
     if (typeof selected !== 'boolean') {

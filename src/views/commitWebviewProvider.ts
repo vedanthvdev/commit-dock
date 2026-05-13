@@ -106,137 +106,144 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
     disposables.push(
       webviewView.webview.onDidReceiveMessage(async (data: unknown) => {
-        const msg = parseWebviewMessage(data);
-        if (!msg) {
-          return;
-        }
-        if (msg.type === 'ready') {
-          await this._pushInitialState();
-          return;
-        }
-        if (msg.type === 'noop') {
-          return;
-        }
-
-        if (!this._currentRepo) {
-          if (msg.type === 'commit') {
-            this._postCommitResult(false, 'No Git repository is active.');
-          }
-          if (msg.type === 'requestHeadCommitMessage') {
-            this._postHeadCommitMessage(false, undefined, 'No Git repository is active.');
-          }
-          if (msg.type === 'push') {
-            this._postPushResult(false, 'No Git repository is active.');
-          }
-          if (msg.type === 'requestStashList') {
-            this._postStashListMessage({ ok: true, entries: [] });
+        try {
+          const msg = parseWebviewMessage(data);
+          if (!msg) {
             return;
           }
-          if (msg.type === 'stashApply' || msg.type === 'stashPop' || msg.type === 'stashDrop') {
-            this._postStashResult(false, 'No Git repository is active.');
+          if (msg.type === 'ready') {
+            await this._pushInitialState();
             return;
           }
-          return;
-        }
-
-        const repo = this._currentRepo;
-        const root = repo.rootUri.fsPath;
-        const set = this._getOrCreateDeselectedSet(root);
-
-        if (msg.type === 'setPathSelected') {
-          const p = msg.payload.path;
-          const selected = msg.payload.selected;
-          if (!this._isSelectablePath(repo, p)) {
+          if (msg.type === 'noop') {
             return;
           }
-          if (selected) {
-            set.delete(p);
-          } else {
-            set.add(p);
-          }
-          this._postSnapshotImmediate(repo);
-          return;
-        }
 
-        if (msg.type === 'setGroupSelection') {
-          const group = msg.payload.group;
-          const checked = msg.payload.checked;
-          const paths = getSelectablePathsForGroup(repo, group);
-          for (const p of paths) {
-            if (checked) {
+          if (!this._currentRepo) {
+            if (msg.type === 'commit') {
+              this._postCommitResult(false, 'No Git repository is active.');
+            }
+            if (msg.type === 'requestHeadCommitMessage') {
+              this._postHeadCommitMessage(false, undefined, 'No Git repository is active.');
+            }
+            if (msg.type === 'push') {
+              this._postPushResult(false, 'No Git repository is active.');
+            }
+            if (msg.type === 'requestStashList') {
+              this._postStashListMessage({ ok: true, entries: [] });
+              return;
+            }
+            if (msg.type === 'stashApply' || msg.type === 'stashPop' || msg.type === 'stashDrop') {
+              this._postStashResult(false, 'No Git repository is active.');
+              return;
+            }
+            return;
+          }
+
+          const repo = this._currentRepo;
+          const root = repo.rootUri.fsPath;
+          const set = this._getOrCreateDeselectedSet(root);
+
+          if (msg.type === 'setPathSelected') {
+            const p = msg.payload.path;
+            const selected = msg.payload.selected;
+            if (!this._isSelectablePath(repo, p)) {
+              return;
+            }
+            if (selected) {
               set.delete(p);
             } else {
               set.add(p);
             }
+            this._postSnapshotImmediate(repo);
+            return;
           }
-          this._postSnapshotImmediate(repo);
-          return;
-        }
 
-        if (msg.type === 'selectAll') {
-          for (const p of getAllSelectablePaths(repo)) {
-            set.delete(p);
+          if (msg.type === 'setGroupSelection') {
+            const group = msg.payload.group;
+            const checked = msg.payload.checked;
+            const paths = getSelectablePathsForGroup(repo, group);
+            for (const p of paths) {
+              if (checked) {
+                set.delete(p);
+              } else {
+                set.add(p);
+              }
+            }
+            this._postSnapshotImmediate(repo);
+            return;
           }
-          this._postSnapshotImmediate(repo);
-          return;
-        }
 
-        if (msg.type === 'deselectAll') {
-          for (const p of getAllSelectablePaths(repo)) {
-            set.add(p);
+          if (msg.type === 'selectAll') {
+            for (const p of getAllSelectablePaths(repo)) {
+              set.delete(p);
+            }
+            this._postSnapshotImmediate(repo);
+            return;
           }
-          this._postSnapshotImmediate(repo);
-          return;
-        }
 
-        if (msg.type === 'stageSelected') {
-          await this._stageSelected(repo, set);
-          return;
-        }
+          if (msg.type === 'deselectAll') {
+            for (const p of getAllSelectablePaths(repo)) {
+              set.add(p);
+            }
+            this._postSnapshotImmediate(repo);
+            return;
+          }
 
-        if (msg.type === 'unstageSelected') {
-          await this._unstageSelected(repo, set);
-          return;
-        }
+          if (msg.type === 'stageSelected') {
+            await this._stageSelected(repo, set);
+            return;
+          }
 
-        if (msg.type === 'discardSelected') {
-          await this._discardSelected(repo, set);
-          return;
-        }
+          if (msg.type === 'unstageSelected') {
+            await this._unstageSelected(repo, set);
+            return;
+          }
 
-        if (msg.type === 'commit') {
-          await this._commit(repo, set, msg.payload.message, msg.payload.amend === true);
-          return;
-        }
+          if (msg.type === 'discardSelected') {
+            await this._discardSelected(repo, set);
+            return;
+          }
 
-        if (msg.type === 'requestHeadCommitMessage') {
-          await this._sendHeadCommitMessage(repo);
-          return;
-        }
+          if (msg.type === 'commit') {
+            await this._commit(repo, set, msg.payload.message, msg.payload.amend === true);
+            return;
+          }
 
-        if (msg.type === 'push') {
-          await this._gitPush(repo, msg.payload.forceWithLease === true);
-          return;
-        }
+          if (msg.type === 'requestHeadCommitMessage') {
+            await this._sendHeadCommitMessage(repo);
+            return;
+          }
 
-        if (msg.type === 'requestStashList') {
-          void this._refreshStashList(repo);
-          return;
-        }
+          if (msg.type === 'push') {
+            await this._gitPush(repo, msg.payload.forceWithLease === true);
+            return;
+          }
 
-        if (msg.type === 'stashApply') {
-          void this._stashApply(repo, msg.payload.index);
-          return;
-        }
+          if (msg.type === 'requestStashList') {
+            void this._refreshStashList(repo);
+            return;
+          }
 
-        if (msg.type === 'stashPop') {
-          void this._stashPop(repo, msg.payload.index);
-          return;
-        }
+          if (msg.type === 'stashApply') {
+            void this._stashApply(repo, msg.payload.index);
+            return;
+          }
 
-        if (msg.type === 'stashDrop') {
-          void this._stashDrop(repo, msg.payload.index);
-          return;
+          if (msg.type === 'stashPop') {
+            void this._stashPop(repo, msg.payload.index);
+            return;
+          }
+
+          if (msg.type === 'stashDrop') {
+            void this._stashDrop(repo, msg.payload.index);
+            return;
+          }
+        } catch (err) {
+          console.error('[commit-dock] webview message handler failed', err);
+          void vscode.window.showErrorMessage(
+            `Commit Dock: unexpected error — ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }),
     );

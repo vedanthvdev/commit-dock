@@ -15,8 +15,10 @@ jobs:
         with:
           node-version: '20'
       - name: Install
-        run: npm install
+        run: npm ci
       - name: Compile
         run: npm run compile
+      - name: Typecheck
+        run: npm run typecheck
       - name: Lint
         run: npm run lint

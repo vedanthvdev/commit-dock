@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "publisher": "vedanthvdev",
   "license": "MIT",
   "repository": {
@@ -132,6 +132,7 @@
     "compile": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch",
     "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc -p .",
     "vscode:prepublish": "npm run build",
     "package": "vsce package"
   },
@@ -140,9 +141,9 @@
     "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "@vscode/codicons": "^0.0.36",
-    "@vscode/vsce": "^3.3.0",
-    "esbuild": "^0.25.0",
+    "@vscode/codicons": "^0.0.45",
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.25.12",
     "eslint": "^8.57.0",
     "typescript": "^5.6.0"
   }

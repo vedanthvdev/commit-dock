@@ -41,8 +41,8 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Compile and lint
-        run: npm run compile && npm run lint
+      - name: Compile, typecheck, and lint
+        run: npm run compile && npm run typecheck && npm run lint
 
       - name: Package VSIX
         run: npm run package
@@ -75,4 +75,4 @@ jobs:
             exit 0
           fi
           VSIX="$(ls -1 ./*.vsix | head -n1)"
-          npx --yes @vscode/vsce@3.3.0 publish --no-dependencies --packagePath "$VSIX"
+          npx vsce publish --no-dependencies --packagePath "$VSIX"

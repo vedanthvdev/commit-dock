@@ -15,6 +15,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.2] - 2026-05-13
+
+### Added
+
+- **`npm run typecheck`** (`tsc -p .`) and **CI** / **release** workflows run compile + typecheck + lint. CI installs with **`npm ci`** for reproducible builds.
+
+### Changed
+
+- **Dependencies:** refresh dev toolchain (`@vscode/codicons`, `esbuild`, `@vscode/vsce`); **Marketplace publish** in release workflow uses the repo’s **`vsce`** from `npm ci` instead of a hard‑pinned `npx @vscode/vsce@…` version.
+- **ESLint:** `eqeqeq` and `no-throw-literal` for stricter, clearer control flow.
+
+### Fixed
+
+- **Webview handler:** uncaught errors in the async message path are logged and surfaced as a single user-visible error instead of failing silently.
+- **`git stash list`:** validate repo root (non-empty, no NUL, length cap, directory `stat`), cap parsed lines, and set `windowsHide` / explicit non-shell `execFile` options.
+- **Protocol:** cap stash index and reject oversized / NUL‑containing `setPathSelected` paths.
+
 ## [0.9.1] - 2026-05-13
 
 ### Fixed
@@ -115,7 +132,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/vedanthvdev/commit-dock/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...v0.8.0
