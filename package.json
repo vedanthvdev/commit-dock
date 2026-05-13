@@ -43,7 +43,8 @@
     "onCommand:commitDock.openFirstMergeConflictDiff",
     "onCommand:commitDock.refreshCommitView",
     "onCommand:commitDock.cherryPickCommit",
-    "onCommand:commitDock.revertCommit"
+    "onCommand:commitDock.revertCommit",
+    "onCommand:commitDock.stashWithMessage"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -112,6 +113,11 @@
       {
         "command": "commitDock.revertCommit",
         "title": "Revert Commit…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.stashWithMessage",
+        "title": "Stash Working Tree (with message)…",
         "category": "Commit Dock"
       },
       {
@@ -190,10 +196,7 @@
         },
         "commitDock.copyHeadRevisionFormat": {
           "type": "string",
-          "enum": [
-            "full",
-            "short"
-          ],
+          "enum": ["full", "short"],
           "default": "full",
           "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }

@@ -3,6 +3,7 @@ import { registerBranchCommands } from './branch-commands';
 import { registerHistoryCommands } from './history-commands';
 import { registerMergeConflictDiffCommands } from './merge-conflict-diff-commands';
 import { registerMergeToolCommands } from './merge-tool-commands';
+import { registerStashCommands } from './stash-commands';
 import { CommitWebviewProvider } from './views/commitWebviewProvider';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -10,6 +11,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   registerHistoryCommands(context);
   registerMergeConflictDiffCommands(context);
   registerMergeToolCommands(context);
+  registerStashCommands(context);
   const provider = new CommitWebviewProvider(context.extensionUri, context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(CommitWebviewProvider.viewType, provider, {
