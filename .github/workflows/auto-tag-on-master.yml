@@ -1,0 +1,76 @@
+# When `package.json` "version" changes on a push to `master`, create and push
+# tag `v{version}` on the new HEAD. That tag push triggers `release.yml`, which
+# builds the VSIX and creates/updates the GitHub Release (and publishes to the
+# Marketplace when VSCE_PAT is set).
+#
+# If the version is unchanged, this workflow does nothing (no duplicate releases).
+
+name: Auto-tag version on master
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: auto-tag-master
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create and push version tag when package.json bumps
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "${BEFORE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "No valid previous revision (new ref or unavailable); skipping auto-tag."
+            exit 0
+          fi
+
+          if ! git cat-file -e "${BEFORE_SHA}:package.json" 2>/dev/null; then
+            echo "package.json not found on previous revision; skipping."
+            exit 0
+          fi
+
+          CUR="$(node -p "require('./package.json').version")"
+          PREV="$(git show "${BEFORE_SHA}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")"
+
+          echo "package.json version: previous=${PREV} current=${CUR}"
+
+          if [ "${PREV}" = "${CUR}" ]; then
+            echo "Version unchanged; skipping tag."
+            exit 0
+          fi
+
+          TAG="v${CUR}"
+
+          if git rev-parse "${TAG}" >/dev/null 2>&1; then
+            EXISTING="$(git rev-parse "${TAG}^{commit}")"
+            if [ "${EXISTING}" = "${AFTER_SHA}" ]; then
+              echo "Tag ${TAG} already points at this commit; nothing to do."
+              exit 0
+            fi
+            echo "::error::Tag ${TAG} already exists on commit ${EXISTING}. Refusing to move tags from CI."
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag "${TAG}" "${AFTER_SHA}"
+          git push origin "refs/tags/${TAG}"

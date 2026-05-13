@@ -2,7 +2,7 @@
 
 **Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
 
-> **Status:** current release is **`v0.9.2`** (hardening, CI typecheck, dependency refresh). See [CHANGELOG.md](CHANGELOG.md).
+> **Status:** current release is **`v0.9.3`** (auto-tag on `master` when `package.json` version changes). See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -67,12 +67,27 @@ CI runs on **pushes to `master`** and on **pull requests targeting `master`**.
 
 ## Releasing
 
-1. Bump **`package.json` `version`** and **`CHANGELOG.md`** on `master`, merge, then create an annotated or lightweight tag **`vX.Y.Z`** on that commit. The tag **must** match the version string (for example tag **`v0.9.1`** for version **`0.9.1`**).
-2. Push the tag: `git push origin vX.Y.Z`. [`.github/workflows/release.yml`](.github/workflows/release.yml) runs on that tag push.
-3. **GitHub Release:** the workflow **always** builds the VSIX and **creates or updates** a [GitHub Release](https://github.com/vedanthvdev/commit-dock/releases) for that tag, attaching the `.vsix` (using the default **`GITHUB_TOKEN`**). You do **not** need **`VSCE_PAT`** for the Release to appear.
-4. **Visual Studio Marketplace (optional):** add repository secret **`VSCE_PAT`** (PAT with **Marketplace (Manage)** scope). If it is missing, the workflow **skips** `vsce publish` with a notice and still completes successfully so the GitHub Release is not blocked.
+Releases are **SemVer tags** `vX.Y.Z` that match **`package.json` `version`**.
 
-**If older tags never created a Release** (for example the workflow used to fail before `gh release create` when `VSCE_PAT` was unset), merge the fix, bump version, push a new tag, or create a release manually from **Releases → Draft a new release** and upload the VSIX from `npm run package` locally.
+### Automatic (recommended)
+
+1. On a PR to **`master`**, bump **`package.json` `version`** and update **`CHANGELOG.md`** (and anything else for that release).
+2. **Merge** the PR. If the version string **changed** compared to the previous commit on `master`, [`.github/workflows/auto-tag-on-master.yml`](.github/workflows/auto-tag-on-master.yml) creates and pushes **`v{version}`** on the merge commit.
+3. That **tag push** runs [`.github/workflows/release.yml`](.github/workflows/release.yml): compile, typecheck, lint, package, **GitHub Release** with the VSIX, then **Marketplace** publish when **`VSCE_PAT`** is set.
+
+If you merge **without** changing `version`, **no tag** is created and **no new release** runs (by design).
+
+**Repository settings:** under **Settings → Actions → General → Workflow permissions**, use **Read and write permissions** (or a PAT with `contents: write`) so the auto-tag job can **push tags**. If pushes are blocked, the “Auto-tag version on master” workflow will fail at `git push`.
+
+### Manual tag (optional)
+
+You can still tag locally: `git tag vX.Y.Z && git push origin vX.Y.Z` after the version bump is on `master`.
+
+### Marketplace secret
+
+Add **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope) if you want **`vsce publish`**. Without it, the **GitHub Release** is still created.
+
+**If older tags never created a Release**, merge fixes, bump version once, merge — or create a release manually and upload a VSIX from `npm run package` locally.
 
 ## Versioning
 
