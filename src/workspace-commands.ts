@@ -4,6 +4,18 @@ import { pickPrimaryRepository } from './git/snapshot';
 
 export function registerWorkspaceCommands(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
+    vscode.commands.registerCommand('commitDock.openTerminalAtPrimaryRepo', async () => {
+      const api = await getGitApi({ silent: true });
+      const repo = api ? pickPrimaryRepository(api) : undefined;
+      const fsPath = repo?.rootUri.fsPath;
+      if (!fsPath) {
+        void vscode.window.showWarningMessage('Commit Dock: no Git repository is active.');
+        return;
+      }
+      const terminal = vscode.window.createTerminal({ cwd: fsPath, name: 'Commit Dock' });
+      terminal.show();
+    }),
+
     vscode.commands.registerCommand('commitDock.revealPrimaryRepoInOS', async () => {
       const api = await getGitApi({ silent: true });
       const repo = api ? pickPrimaryRepository(api) : undefined;
