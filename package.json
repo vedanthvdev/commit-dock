@@ -39,6 +39,7 @@
     "onCommand:commitDock.checkoutLocalBranch",
     "onCommand:commitDock.createBranchFromHead",
     "onCommand:commitDock.copyHeadRevision",
+    "onCommand:commitDock.copyHeadBranchName",
     "onCommand:commitDock.openExternalMergeTool",
     "onCommand:commitDock.openFirstMergeConflictDiff",
     "onCommand:commitDock.refreshCommitView",
@@ -97,6 +98,11 @@
       {
         "command": "commitDock.copyHeadRevision",
         "title": "Copy HEAD Revision",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.copyHeadBranchName",
+        "title": "Copy HEAD Branch or Ref",
         "category": "Commit Dock"
       },
       {

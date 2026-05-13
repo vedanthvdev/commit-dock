@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workspace:** palette **Open Terminal at Primary Repository** creates a new integrated terminal with `cwd` set to the primary repository root.
 - **Commit message:** palette **Insert Recent Commit Subject…** quick-picks recent `git log` subjects and inserts them into the Commit Dock message field (host→webview `commitMessageInsert`, protocol **17**).
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
+- **Workspace:** palette **Copy HEAD Branch or Ref** copies the current branch name or detached `HEAD` commit id for the primary repository (no upstream decoration).
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
 - **History:** palette **Revert Commit…** runs `git revert --no-edit` after a modal confirm, with the same clean-tree guard as cherry-pick.
