@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
 - **Stash:** palette **Stash Working Tree (with message)…** creates a stash (including unversioned files) using the same helper as Quick stash, with an editable default message.
+- **History:** palette **Show Recent Commits (Output)** prints the last 40 `git log --oneline --decorate` lines for the primary repository into a dedicated output channel (read-only, Commit Dock scoped).
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
@@ -34,30 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
-
-## [0.9.10] - 2026-05-13
-
-### Changed
-
-- [#47](https://github.com/vedanthvdev/commit-dock/pull/47): COMMITDOCK-47: Merge-conflict banner + protocol 16
-
-## [0.9.9] - 2026-05-13
-
-### Changed
-
-- [#46](https://github.com/vedanthvdev/commit-dock/pull/46): COMMITDOCK-46: HEAD label in Commit webview (protocol 15)
-
-## [0.9.8] - 2026-05-13
-
-### Changed
-
-- [#45](https://github.com/vedanthvdev/commit-dock/pull/45): COMMITDOCK-45: Revert commit (guarded)
-
-## [0.9.7] - 2026-05-13
-
-### Changed
-
-- [#43](https://github.com/vedanthvdev/commit-dock/pull/43): COMMITDOCK-43: Refresh Commit View command
 
 ## [0.9.6] - 2026-05-13
 
