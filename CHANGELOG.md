@@ -13,9 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.7.0] - 2026-05-13
+
+### Added
+
+- **Phase 6 — Push:** **Push** and **Push (force-with-lease)** in the commit panel and palette; force-with-lease requires a **modal confirmation** before calling `repository.push` with `ForcePushMode.ForceWithLease` (protocol **v7**, `pushResult` feedback).
+- **Release automation:** GitHub Action **Release** on tags `v*.*.*` that match `package.json` version — runs compile/lint, **`vsce publish`** to the Visual Studio Marketplace (requires **`VSCE_PAT`** repo secret), and creates a **GitHub Release** attaching the VSIX.
 
 ## [0.6.0] - 2026-05-13
 
@@ -85,7 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...v0.4.0
