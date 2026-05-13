@@ -25,6 +25,9 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 | Command id | Title |
 | --- | --- |
 | `commitDock.showCommitView` | Focus Commit View |
+| `commitDock.checkoutLocalBranch` | Checkout Local Branch… |
+| `commitDock.createBranchFromHead` | Create Branch from HEAD… |
+| `commitDock.copyHeadRevision` | Copy HEAD revision (full SHA) to the clipboard |
 | `commitDock.selectAll` | Select All Changes |
 | `commitDock.deselectAll` | Deselect All Changes |
 | `commitDock.stageSelected` | Stage Selected Changes |
