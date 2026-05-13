@@ -650,6 +650,19 @@ function main(): void {
       applyCommitFooterLayout();
       updateCommitPanelState();
     }
+    if (msg.type === 'commitMessageInsert') {
+      if (textarea) {
+        const ins = msg.payload.text;
+        const cur = textarea.value;
+        if (cur.trim()) {
+          textarea.value = `${cur.trimEnd()}\n\n${ins}`;
+        } else {
+          textarea.value = ins;
+        }
+        persistCommitUi();
+        textarea.focus();
+      }
+    }
     if (msg.type === 'headCommitMessage') {
       if (msg.payload.ok) {
         if (commitHint) {

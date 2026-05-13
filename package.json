@@ -52,6 +52,7 @@
     "onCommand:commitDock.copyActiveEditorRelativePath",
     "onCommand:commitDock.revealPrimaryRepoInOS",
     "onCommand:commitDock.openTerminalAtPrimaryRepo",
+    "onCommand:commitDock.insertRecentCommitSubject",
     "onCommand:commitDock.showRecentCommitGraph"
   ],
   "extensionDependencies": [
@@ -161,6 +162,11 @@
       {
         "command": "commitDock.openTerminalAtPrimaryRepo",
         "title": "Open Terminal at Primary Repository",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.insertRecentCommitSubject",
+        "title": "Insert Recent Commit Subject…",
         "category": "Commit Dock"
       },
       {
