@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **16**) so the webview can hide **Commit and Push** without a reload.
 - **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
 - **External merge tool:** **`commitDock.externalMergeToolPath`** plus **Open External Merge Tool for Conflict…** (palette) launches a user-provided merge tool with one conflict path argument (no shell).
-- **Change list toolbar:** **Expand all** / **Collapse all** for the `<details>` change groups (toolbar parity toward **#28**; directory tree grouping remains future work).
+- **Change list:** change groups now insert lightweight **directory subheaders** (first path segment) while preserving per-row selection and conflict affordances.
+- **Change list toolbar:** **Expand all** / **Collapse all** for the `<details>` change groups (**#28**).
 
 ### Changed
 

@@ -913,6 +913,15 @@ function wireChangesHotkeys(
   });
 }
 
+function directoryBucketForRelativePath(relPath: string): string {
+  const normalized = relPath.replace(/\\/g, '/');
+  const idx = normalized.indexOf('/');
+  if (idx === -1) {
+    return '';
+  }
+  return normalized.slice(0, idx);
+}
+
 function renderRepoSnapshot(
   vscodeApi: NonNullable<ReturnType<NonNullable<Window['acquireVsCodeApi']>>>,
   snapshot: RepoSnapshot,
@@ -1049,7 +1058,17 @@ function renderRepoSnapshot(
       empty.textContent = 'No files';
       list.appendChild(empty);
     } else {
-      for (const file of group.files) {
+      const filesSorted = [...group.files].sort((a, b) => a.relPath.localeCompare(b.relPath));
+      let currentBucket: string | undefined;
+      for (const file of filesSorted) {
+        const bucket = directoryBucketForRelativePath(file.relPath);
+        if (bucket !== currentBucket) {
+          currentBucket = bucket;
+          const heading = document.createElement('li');
+          heading.className = `file-list__subdir file-list__subdir--${group.id}`;
+          heading.textContent = bucket ? `${bucket}/` : 'Root files';
+          list.appendChild(heading);
+        }
         const li = document.createElement('li');
         li.className = `file-list__row file-list__row--${group.id}`;
 
