@@ -51,6 +51,7 @@
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
     "onCommand:commitDock.showShortGitStatus",
+    "onCommand:commitDock.showWorkingTreeDiffStat",
     "onCommand:commitDock.compareWorkingTreeWithRef",
     "onCommand:commitDock.copyActiveEditorRelativePath",
     "onCommand:commitDock.revealPrimaryRepoInOS",
@@ -161,6 +162,11 @@
       {
         "command": "commitDock.showShortGitStatus",
         "title": "Show Short Git Status (Output)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.showWorkingTreeDiffStat",
+        "title": "Show Working Tree Diff Stat (Output)",
         "category": "Commit Dock"
       },
       {
