@@ -1,12 +1,10 @@
-# On tag push v*.*.* matching package.json "version":
-# 1) Build and attach a VSIX to a GitHub Release (always, using GITHUB_TOKEN).
-# 2) Publish to the Visual Studio Marketplace only when VSCE_PAT is configured.
+# Triggered by:
+# - Tag push `v*.*.*` (e.g. manual `git push origin v1.2.3`), or
+# - `workflow_dispatch` (including dispatch from auto-tag-on-master.yml after it
+#   pushes a new version tag).
 #
-# Tags are usually created by auto-tag-on-master.yml when package.json version
-# changes on master. You can still push a tag manually.
-#
-# Manual run: Actions → Release → Run workflow → enter an existing tag (e.g. v0.9.3)
-# if a tag was pushed by GITHUB_TOKEN and did not trigger this workflow.
+# Builds the VSIX, creates/updates the GitHub Release, and publishes to the
+# Marketplace when VSCE_PAT is set.
 #
 # Optional repository secret (Marketplace only):
 #   VSCE_PAT — PAT with "Marketplace (Manage)" scope
@@ -24,6 +22,10 @@ on:
         description: 'Existing SemVer tag (e.g. v0.9.3). Must already exist on the remote.'
         required: true
         type: string
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: write

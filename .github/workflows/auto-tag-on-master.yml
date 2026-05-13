@@ -1,14 +1,21 @@
 # When `package.json` "version" changes on a push to `master`, create and push
-# tag `v{version}` on the new HEAD. That tag push triggers `release.yml`, which
-# builds the VSIX and creates/updates the GitHub Release (and publishes to the
-# Marketplace when VSCE_PAT is set).
+# tag `v{version}` on the new HEAD, then **dispatch** `release.yml` so a merge
+# reliably produces a GitHub Release + VSIX (and Marketplace publish when
+# VSCE_PAT is set).
 #
-# GitHub does not run *other* workflows when a tag is pushed using the default
-# `GITHUB_TOKEN`. Use repository secret **TAG_PUSH_TOKEN** (classic PAT with
-# `repo` scope, or a fine-grained PAT with Contents: Read and write) so the tag
-# push is attributed to a real user/app and `release.yml` runs automatically.
-# If the secret is missing, the workflow still pushes the tag with `GITHUB_TOKEN`
-# and prints a notice — run **Release** manually (workflow_dispatch) for that tag.
+# Even when the tag is pushed with a PAT (**TAG_PUSH_TOKEN**), GitHub often does
+# **not** run other workflows from that tag `push` event. This workflow therefore
+# calls `gh workflow run Release …` after a successful tag push.
+#
+# **TAG_PUSH_TOKEN** (recommended): classic PAT with **`repo`** scope, or a
+# fine-grained PAT on this repo with **Contents: Read and write** and
+# **Actions: Read and write** (needed for `workflow_dispatch` via the API).
+# Used for `git push` of the tag and as `GH_TOKEN` for `gh workflow run`.
+#
+# If the secret is missing, the tag is pushed with `GITHUB_TOKEN` (other
+# workflows still will not run from that push); this job still tries `gh workflow
+# run` using `GITHUB_TOKEN`, which works when repo **Workflow permissions** allow
+# **Read and write** for Actions. If dispatch fails, run **Release** manually.
 #
 # If the version is unchanged, this workflow does nothing (no duplicate releases).
 
@@ -20,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: auto-tag-master
@@ -83,9 +91,29 @@ jobs:
           git tag "${TAG}" "${AFTER_SHA}"
 
           if [ -n "${TAG_PUSH_TOKEN}" ]; then
-            echo "Pushing tag using TAG_PUSH_TOKEN so follow-up workflows (Release) can run."
+            echo "Pushing tag using TAG_PUSH_TOKEN (contents write on the remote)."
             git push "https://x-access-token:${TAG_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG}"
           else
-            echo "::notice::TAG_PUSH_TOKEN is not set. Pushing with GITHUB_TOKEN — GitHub will not trigger other workflows for this push. Add repository secret TAG_PUSH_TOKEN (PAT with repo scope), or run Actions → Release → workflow_dispatch for tag ${TAG}."
+            echo "::notice::TAG_PUSH_TOKEN is not set. Pushing the tag with GITHUB_TOKEN (tag push will not trigger other workflows). Ensure Actions → Workflow permissions allow read/write, or add TAG_PUSH_TOKEN so dispatch below can authenticate."
             git push origin "refs/tags/${TAG}"
+          fi
+
+          echo "Dispatching Release workflow for ${TAG} (workflow_dispatch)…"
+          if ! command -v gh >/dev/null 2>&1; then
+            echo "::warning::GitHub CLI (gh) not found on runner; run Actions → Release manually for ${TAG}."
+            exit 0
+          fi
+
+          if [ -n "${TAG_PUSH_TOKEN}" ]; then
+            export GH_TOKEN="${TAG_PUSH_TOKEN}"
+          else
+            export GH_TOKEN="${GITHUB_TOKEN}"
+          fi
+
+          set +e
+          gh workflow run "Release" --repo "${GITHUB_REPOSITORY}" -f "tag=${TAG}"
+          gh_rc=$?
+          set -e
+          if [ "${gh_rc}" -ne 0 ]; then
+            echo "::warning::Could not dispatch Release for ${TAG} (exit ${gh_rc}). Run Actions → Release → workflow_dispatch with that tag. For PATs: fine-grained needs **Actions: Read and write**; classic needs **repo** (or workflow) scope."
           fi
