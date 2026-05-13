@@ -11,6 +11,7 @@ import {
   getSelectedSelectablePaths,
   pathsToDiscard,
   pathsToStage,
+  pathsStagedAndDeselected,
   pathsToUnstage,
   pickPrimaryRepository,
 } from '../git/snapshot';
@@ -100,11 +101,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           return;
         }
 
-        const repo = this._currentRepo;
-        if (!repo) {
+        if (!this._currentRepo) {
+          if (msg.type === 'commit') {
+            this._postCommitResult(false, 'No Git repository is active.');
+          }
           return;
         }
 
+        const repo = this._currentRepo;
         const root = repo.rootUri.fsPath;
         const set = this._getOrCreateDeselectedSet(root);
 
@@ -166,6 +170,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
         if (msg.type === 'discardSelected') {
           await this._discardSelected(repo, set);
+          return;
+        }
+
+        if (msg.type === 'commit') {
+          await this._commit(repo, set, msg.payload.message);
           return;
         }
       }),
@@ -318,6 +327,55 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     for (const p of restore) {
       set.delete(p);
     }
+    this._postSnapshotImmediate(repo);
+  }
+
+  private _postCommitResult(ok: boolean, detail?: string): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    const msg: HostToWebviewMessage = {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'commitResult',
+      payload: { ok, detail },
+    };
+    void view.webview.postMessage(msg);
+  }
+
+  private async _commit(repo: Repository, set: Set<string>, message: string): Promise<void> {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      this._postCommitResult(false, 'Enter a commit message.');
+      return;
+    }
+    if (repo.state.mergeChanges.length > 0) {
+      this._postCommitResult(false, 'Resolve merge conflicts before committing.');
+      void vscode.window.showErrorMessage('Commit Dock: resolve merge conflicts before committing.');
+      return;
+    }
+    try {
+      const toUnstage = pathsStagedAndDeselected(repo, set);
+      if (toUnstage.length) {
+        await repo.revert(toUnstage);
+      }
+      const selected = getSelectedSelectablePaths(repo, set);
+      const toStage = pathsToStage(repo, selected);
+      if (toStage.length) {
+        await repo.add(toStage);
+      }
+      if (repo.state.indexChanges.length === 0) {
+        this._postCommitResult(false, 'Nothing to commit (index is empty).');
+        void vscode.window.showInformationMessage('Commit Dock: nothing to commit.');
+        return;
+      }
+      await repo.commit(trimmed);
+    } catch (err) {
+      this._showGitError('Commit', err);
+      this._postCommitResult(false, err instanceof Error ? err.message : String(err));
+      return;
+    }
+    this._postCommitResult(true);
     this._postSnapshotImmediate(repo);
   }
 
@@ -554,6 +612,14 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     <main class="main">
       <p id="status" class="status">Loading…</p>
       <p id="repo" class="repo" hidden></p>
+      <section id="commit-panel" class="commit-panel" hidden>
+        <label class="commit-panel__label" for="commit-message">Commit message</label>
+        <textarea id="commit-message" class="commit-panel__textarea" rows="4" spellcheck="true" placeholder="Describe your changes"></textarea>
+        <div class="commit-panel__row">
+          <button type="button" id="commit-submit" class="selection-toolbar__btn selection-toolbar__btn--primary">Commit</button>
+        </div>
+        <p id="commit-hint" class="hint commit-panel__hint" hidden></p>
+      </section>
       <section id="changes" class="changes" hidden tabindex="-1"></section>
     </main>
   </div>

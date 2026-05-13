@@ -30,6 +30,58 @@ body {
   gap: 8px;
 }
 
+.commit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.commit-panel__label {
+  font-weight: 600;
+  font-size: calc(var(--vscode-font-size) * 0.95);
+}
+
+.commit-panel__textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 72px;
+  padding: 6px 8px;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  font: inherit;
+  line-height: 1.35;
+}
+
+.commit-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.commit-panel__hint {
+  margin: 0;
+  color: var(--vscode-errorForeground);
+}
+
+.selection-toolbar__btn--primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border-color: var(--vscode-button-border, transparent);
+}
+
+.selection-toolbar__btn--primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.selection-toolbar__btn--primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .selection-toolbar {
   display: flex;
   gap: 8px;
