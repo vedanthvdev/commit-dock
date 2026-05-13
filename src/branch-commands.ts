@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
+import { getCopyHeadRevisionFormat } from './config';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -114,8 +115,14 @@ export function registerBranchCommands(context: vscode.ExtensionContext): void {
           void vscode.window.showErrorMessage('Commit Dock: unexpected output from git rev-parse.');
           return;
         }
-        await vscode.env.clipboard.writeText(sha);
-        void vscode.window.showInformationMessage(`Commit Dock: copied revision ${sha.slice(0, 7)}…`);
+        const fmt = getCopyHeadRevisionFormat();
+        const toCopy = fmt === 'short' ? sha.slice(0, 7) : sha;
+        await vscode.env.clipboard.writeText(toCopy);
+        void vscode.window.showInformationMessage(
+          fmt === 'short'
+            ? `Commit Dock: copied short revision ${toCopy}.`
+            : `Commit Dock: copied full revision ${sha.slice(0, 7)}…`,
+        );
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         void vscode.window.showErrorMessage(`Commit Dock: could not read HEAD — ${msg}`);

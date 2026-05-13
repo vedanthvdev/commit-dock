@@ -35,9 +35,14 @@ export function getShowCommitAndPushButton(): boolean {
   return v !== false;
 }
 
-
 /** Optional path to an external merge tool executable or macOS `.app` bundle (user-provided). */
 export function getExternalMergeToolPath(): string {
   const v = vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION).get<string>('externalMergeToolPath');
   return typeof v === 'string' ? v.trim() : '';
+}
+
+/** What **Copy HEAD Revision** places on the clipboard: full 40‑char SHA or a 7‑char short SHA. */
+export function getCopyHeadRevisionFormat(): 'full' | 'short' {
+  const v = vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION).get<string>('copyHeadRevisionFormat');
+  return v === 'short' ? 'short' : 'full';
 }

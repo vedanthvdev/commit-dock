@@ -169,6 +169,12 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Optional path to a **user-provided** external merge tool executable, or a macOS `.app` bundle. Used by **Open External Merge Tool for Conflict…**; the tool is started with the conflicted file path as its **sole** argument (`execFile`-style spawn, no shell)."
+        },
+        "commitDock.copyHeadRevisionFormat": {
+          "type": "string",
+          "enum": ["full", "short"],
+          "default": "full",
+          "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }
       }
     }
