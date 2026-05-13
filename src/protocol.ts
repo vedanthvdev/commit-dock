@@ -1,5 +1,5 @@
 /** Protocol version bumped when host↔webview message shapes change. */
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 
 export type SnapshotGroupId = 'conflicted' | 'staged' | 'unstaged' | 'untracked';
 
@@ -36,7 +36,12 @@ export type HostToWebviewMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'hello'; payload: { message: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'gitStatus'; payload: { ok: boolean; detail?: string } }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'repoSnapshot'; payload: RepoSnapshot }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitResult'; payload: { ok: boolean; detail?: string } };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commitResult'; payload: { ok: boolean; detail?: string } }
+  | {
+      protocolVersion: typeof PROTOCOL_VERSION;
+      type: 'headCommitMessage';
+      payload: { ok: boolean; message?: string; detail?: string };
+    };
 
 export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'ready' }
@@ -48,7 +53,8 @@ export type WebviewToHostMessage =
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'stageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'unstageSelected' }
   | { protocolVersion: typeof PROTOCOL_VERSION; type: 'discardSelected' }
-  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string } };
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'commit'; payload: { message: string; amend?: boolean } }
+  | { protocolVersion: typeof PROTOCOL_VERSION; type: 'requestHeadCommitMessage' };
 
 const GROUP_IDS: ReadonlySet<string> = new Set(['conflicted', 'staged', 'unstaged', 'untracked']);
 
@@ -76,20 +82,29 @@ export function parseWebviewMessage(data: unknown): WebviewToHostMessage | undef
     return msg as WebviewToHostMessage;
   }
 
+  if (msg.type === 'requestHeadCommitMessage') {
+    return msg as WebviewToHostMessage;
+  }
+
   if (msg.type === 'commit') {
     const payload = (msg as { payload?: unknown }).payload;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
       return undefined;
     }
-    const message = (payload as { message?: unknown }).message;
-    if (typeof message !== 'string' || message.length > 200_000) {
+    const rawMessage = (payload as { message?: unknown }).message;
+    if (typeof rawMessage !== 'string' || rawMessage.length > 200_000) {
       return undefined;
     }
-    const trimmed = message.trim();
-    if (!trimmed) {
+    const amend = (payload as { amend?: unknown }).amend === true;
+    const trimmed = rawMessage.trim();
+    if (!amend && !trimmed) {
       return undefined;
     }
-    return { protocolVersion: PROTOCOL_VERSION, type: 'commit', payload: { message: trimmed } };
+    return {
+      protocolVersion: PROTOCOL_VERSION,
+      type: 'commit',
+      payload: { message: rawMessage, amend },
+    };
   }
 
   if (msg.type === 'setPathSelected') {

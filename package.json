@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "vedanthvdev",
   "license": "MIT",
   "repository": {

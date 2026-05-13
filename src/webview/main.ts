@@ -14,6 +14,7 @@ declare global {
 type PersistedUiState = {
   detailsOpen?: Record<string, boolean>;
   commitDraft?: string;
+  commitAmend?: boolean;
 };
 
 function main(): void {
@@ -31,6 +32,7 @@ function main(): void {
   const textarea = document.getElementById('commit-message') as HTMLTextAreaElement | null;
   const commitBtn = document.getElementById('commit-submit') as HTMLButtonElement | null;
   const commitHint = document.getElementById('commit-hint') as HTMLParagraphElement | null;
+  const amendCb = document.getElementById('commit-amend') as HTMLInputElement | null;
 
   function updateCommitPanelState(): void {
     const panel = document.getElementById('commit-panel');
@@ -46,14 +48,21 @@ function main(): void {
     const blocked = conflictCount > 0;
     commitBtn.disabled = committing || !hasRepo || blocked;
     textarea.disabled = !lastGitOk || !hasRepo;
+    if (amendCb) {
+      amendCb.disabled = !lastGitOk || !hasRepo;
+    }
   }
 
-  function persistCommitDraft(): void {
+  function persistCommitUi(): void {
     if (!textarea) {
       return;
     }
     const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
-    vscodeApi.setState({ ...prev, commitDraft: textarea.value });
+    vscodeApi.setState({
+      ...prev,
+      commitDraft: textarea.value,
+      commitAmend: amendCb?.checked ?? false,
+    });
   }
 
   let draftTimer: ReturnType<typeof setTimeout> | undefined;
@@ -61,15 +70,16 @@ function main(): void {
     if (draftTimer) {
       window.clearTimeout(draftTimer);
     }
-    draftTimer = window.setTimeout(() => persistCommitDraft(), 250);
+    draftTimer = window.setTimeout(() => persistCommitUi(), 250);
   }
 
   function submitCommit(): void {
     if (!textarea || !commitBtn || commitBtn.disabled || committing) {
       return;
     }
-    const body = textarea.value.trim();
-    if (!body.length) {
+    const amend = amendCb?.checked ?? false;
+    const trimmed = textarea.value.trim();
+    if (!amend && !trimmed.length) {
       if (commitHint) {
         commitHint.hidden = false;
         commitHint.textContent = 'Enter a commit message.';
@@ -84,7 +94,7 @@ function main(): void {
     vscodeApi.postMessage({
       protocolVersion: PROTOCOL_VERSION,
       type: 'commit',
-      payload: { message: textarea.value },
+      payload: { message: textarea.value, amend },
     });
   }
 
@@ -92,6 +102,9 @@ function main(): void {
     const persisted = vscodeApi.getState() as PersistedUiState | undefined;
     if (typeof persisted?.commitDraft === 'string') {
       textarea.value = persisted.commitDraft;
+    }
+    if (amendCb && persisted?.commitAmend) {
+      amendCb.checked = true;
     }
     textarea.addEventListener('input', onCommitInput);
     textarea.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -103,6 +116,17 @@ function main(): void {
     commitBtn.addEventListener('click', () => {
       submitCommit();
     });
+    if (amendCb) {
+      amendCb.addEventListener('change', () => {
+        persistCommitUi();
+        if (amendCb.checked) {
+          vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestHeadCommitMessage' });
+        }
+      });
+      if (amendCb.checked) {
+        vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'requestHeadCommitMessage' });
+      }
+    }
   }
 
   updateCommitPanelState();
@@ -131,6 +155,20 @@ function main(): void {
       renderRepoSnapshot(vscodeApi, msg.payload);
       updateCommitPanelState();
     }
+    if (msg.type === 'headCommitMessage') {
+      if (msg.payload.ok) {
+        if (commitHint) {
+          commitHint.hidden = true;
+        }
+        if (msg.payload.message && textarea && amendCb?.checked && !textarea.value.trim()) {
+          textarea.value = msg.payload.message;
+          persistCommitUi();
+        }
+      } else if (commitHint) {
+        commitHint.hidden = false;
+        commitHint.textContent = msg.payload.detail ?? 'Could not load the previous commit message.';
+      }
+    }
     if (msg.type === 'commitResult') {
       committing = false;
       if (msg.payload.ok) {
@@ -138,7 +176,7 @@ function main(): void {
           textarea.value = '';
         }
         const prev = (vscodeApi.getState() as PersistedUiState | undefined) ?? {};
-        vscodeApi.setState({ ...prev, commitDraft: '' });
+        vscodeApi.setState({ ...prev, commitDraft: '', commitAmend: amendCb?.checked ?? false });
         if (commitHint) {
           commitHint.hidden = true;
           commitHint.textContent = '';
