@@ -1,0 +1,131 @@
+# After a PR is merged into `master`, bump `package.json` / lockfile from PR labels
+# (`semver:patch|minor|major`), prepend CHANGELOG, push one commit, then Auto-tag
+# + Release run for the new version.
+
+name: Version bump on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [master]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: version-bump-master
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'master' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - name: Resolve bump kind from labels
+        id: kind
+        env:
+          LABEL_JSON: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          set -euo pipefail
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("skip-semver") != null' >/dev/null; then
+            if echo "${LABEL_JSON}" | jq -e 'map(.name) | (index("semver:major") != null) or (index("semver:minor") != null) or (index("semver:patch") != null)' >/dev/null; then
+              echo "::error::Do not combine skip-semver with semver:* labels."
+              exit 1
+            fi
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:major") != null' >/dev/null; then
+            echo "kind=major" >> "$GITHUB_OUTPUT"
+          elif echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:minor") != null' >/dev/null; then
+            echo "kind=minor" >> "$GITHUB_OUTPUT"
+          elif echo "${LABEL_JSON}" | jq -e 'map(.name) | index("semver:patch") != null' >/dev/null; then
+            echo "kind=patch" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No semver:* label on merged PR #${{ github.event.pull_request.number }}; skipping automatic version bump."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.kind.outputs.skip != 'true'
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        if: steps.kind.outputs.skip != 'true'
+        with:
+          node-version: "20"
+
+      - name: Bump version, update CHANGELOG, push to master
+        id: bump
+        if: steps.kind.outputs.skip != 'true'
+        env:
+          BUMP_KIND: ${{ steps.kind.outputs.kind }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          TAG_PUSH_TOKEN: ${{ secrets.TAG_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          git fetch origin master
+          git checkout master
+          git reset --hard origin/master
+
+          if ! git merge-base --is-ancestor "${MERGE_SHA}" HEAD; then
+            echo "::error::merge_commit_sha ${MERGE_SHA} is not on master; cannot bump."
+            exit 1
+          fi
+
+          first_parent="$(git rev-parse "${MERGE_SHA}^1" 2>/dev/null || true)"
+          if [ -z "${first_parent}" ]; then
+            echo "::error::Could not resolve first parent of merge commit ${MERGE_SHA}."
+            exit 1
+          fi
+
+          cur_ver="$(git show "${MERGE_SHA}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")"
+          parent_ver="$(git show "${first_parent}:package.json" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version")"
+
+          if [ "${cur_ver}" != "${parent_ver}" ]; then
+            echo "::notice::package.json version changed in the merged PR (${parent_ver} → ${cur_ver}); skipping label-driven bump."
+            exit 0
+          fi
+
+          git reset --hard "${MERGE_SHA}"
+
+          npm version "${BUMP_KIND}" --no-git-tag-version
+
+          new_ver="$(node -p "require('./package.json').version")"
+          echo "new_version=${new_ver}" >> "$GITHUB_OUTPUT"
+
+          export RELEASE_VERSION="${new_ver}"
+          export RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          export PR_NUMBER="${PR_NUMBER}"
+          PR_TITLE_ONE_LINE="$(printf '%s' "${PR_TITLE}" | tr '\n\r' '  ')"
+          export PR_TITLE="${PR_TITLE_ONE_LINE}"
+          export PR_URL="${PR_URL}"
+          node .github/scripts/append-release-changelog.mjs
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md
+          if git diff --cached --quiet; then
+            echo "::error::No staged changes after version bump; aborting."
+            exit 1
+          fi
+
+          git commit -m "chore(release): v${new_ver} (PR #${PR_NUMBER})"
+
+          if [ -n "${TAG_PUSH_TOKEN}" ]; then
+            git push "https://x-access-token:${TAG_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:master
+          else
+            git push origin HEAD:master
+          fi

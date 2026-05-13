@@ -1,0 +1,70 @@
+# Require a SemVer intent label (or an explicit skip) on every PR targeting `master`,
+# so merges can drive automated version bumps without hand-editing `package.json`.
+
+name: SemVer label (PR to master)
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+    branches:
+      - master
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: semver-label-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    steps:
+      - name: Verify SemVer or skip label
+        env:
+          LABEL_JSON: ${{ toJson(github.event.pull_request.labels) }}
+        run: |
+          set -euo pipefail
+          echo "${LABEL_JSON}" | jq -e '
+            map(.name) as $n
+            | ($n | index("skip-semver")) != null
+            or ($n | index("semver:major")) != null
+            or ($n | index("semver:minor")) != null
+            or ($n | index("semver:patch")) != null
+          ' >/dev/null
+
+          if echo "${LABEL_JSON}" | jq -e 'map(.name) | index("skip-semver") != null' >/dev/null; then
+            if echo "${LABEL_JSON}" | jq -e 'map(.name) | (index("semver:major") != null) or (index("semver:minor") != null) or (index("semver:patch") != null)' >/dev/null; then
+              echo "::error::Do not combine skip-semver with semver:* labels."
+              exit 1
+            fi
+            echo "Label skip-semver present — skipping SemVer requirement."
+            exit 0
+          fi
+
+          major=$(echo "${LABEL_JSON}" | jq 'map(.name) | index("semver:major") != null')
+          minor=$(echo "${LABEL_JSON}" | jq 'map(.name) | index("semver:minor") != null')
+          patch=$(echo "${LABEL_JSON}" | jq 'map(.name) | index("semver:patch") != null')
+
+          count=0
+          [ "${major}" = "true" ] && count=$((count + 1))
+          [ "${minor}" = "true" ] && count=$((count + 1))
+          [ "${patch}" = "true" ] && count=$((count + 1))
+
+          if [ "${count}" -gt 1 ]; then
+            echo "::error::Use only one of semver:major, semver:minor, semver:patch (or skip-semver)."
+            exit 1
+          fi
+
+          echo "SemVer label OK."
