@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.4] - 2026-05-13
+
+### Fixed
+
+- **CI:** restore **`vitest`** in `devDependencies` so `npm ci` installs the test runner (`npm test` was invoking `vitest run` while the dependency was missing from `package.json`).
+
+### Chore
+
+- Bump version to smoke-test **Auto-tag** (with **`TAG_PUSH_TOKEN`**) → **Release** on tag push after merges to `master`.
+
 ## [0.9.3] - 2026-05-13
 
 ### Added
