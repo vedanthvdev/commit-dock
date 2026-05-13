@@ -30,6 +30,52 @@ body {
   gap: 8px;
 }
 
+.selection-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.selection-toolbar__btn {
+  appearance: none;
+  border: 1px solid var(--vscode-button-border, transparent);
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  padding: 4px 10px;
+  border-radius: 2px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.selection-toolbar__btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.changes:focus {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: -1px;
+}
+
+.changes__summary-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.group-checkbox,
+.row-checkbox {
+  flex: 0 0 auto;
+  accent-color: var(--vscode-checkbox-background);
+}
+
+.file-list__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.35;
+}
+
 .status {
   margin: 0;
   opacity: 0.95;
@@ -66,13 +112,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.file-list__row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  line-height: 1.35;
 }
 
 .file-list__name {

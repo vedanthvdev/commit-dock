@@ -3,7 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { getGitApi } from '../git/api';
-import { buildRepoSnapshot, emptyRepoSnapshot, pickPrimaryRepository } from '../git/snapshot';
+import {
+  buildRepoSnapshot,
+  emptyRepoSnapshot,
+  getAllSelectablePaths,
+  getSelectablePathsForGroup,
+  pickPrimaryRepository,
+} from '../git/snapshot';
 import { PROTOCOL_VERSION, parseWebviewMessage, type HostToWebviewMessage } from '../protocol';
 import type { API, Repository } from '../git/git-api';
 
@@ -15,6 +21,8 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   private _debounce?: ReturnType<typeof setTimeout>;
   private _subscribedRepoRoot?: string;
   private _didRegisterGlobalGitListeners = false;
+  private readonly _deselectedByRepoRoot = new Map<string, Set<string>>();
+  private _currentRepo?: Repository;
 
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -28,6 +36,17 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._context.subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
         void this._onGitContextMaybeChanged();
+      }),
+    );
+
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.selectAll', () => {
+        this.selectAll();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.deselectAll', () => {
+        this.deselectAll();
       }),
     );
   }
@@ -56,6 +75,64 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         }
         if (msg.type === 'ready') {
           await this._pushInitialState();
+          return;
+        }
+        if (msg.type === 'noop') {
+          return;
+        }
+
+        const repo = this._currentRepo;
+        if (!repo) {
+          return;
+        }
+
+        const root = repo.rootUri.fsPath;
+        const set = this._getOrCreateDeselectedSet(root);
+
+        if (msg.type === 'setPathSelected') {
+          const p = msg.payload.path;
+          const selected = msg.payload.selected;
+          if (!this._isSelectablePath(repo, p)) {
+            return;
+          }
+          if (selected) {
+            set.delete(p);
+          } else {
+            set.add(p);
+          }
+          this._postSnapshotImmediate(repo);
+          return;
+        }
+
+        if (msg.type === 'setGroupSelection') {
+          const group = msg.payload.group;
+          const checked = msg.payload.checked;
+          const paths = getSelectablePathsForGroup(repo, group);
+          for (const p of paths) {
+            if (checked) {
+              set.delete(p);
+            } else {
+              set.add(p);
+            }
+          }
+          this._postSnapshotImmediate(repo);
+          return;
+        }
+
+        if (msg.type === 'selectAll') {
+          for (const p of getAllSelectablePaths(repo)) {
+            set.delete(p);
+          }
+          this._postSnapshotImmediate(repo);
+          return;
+        }
+
+        if (msg.type === 'deselectAll') {
+          for (const p of getAllSelectablePaths(repo)) {
+            set.add(p);
+          }
+          this._postSnapshotImmediate(repo);
+          return;
         }
       }),
     );
@@ -72,6 +149,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       vscode.Disposable.from(...disposables).dispose();
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = undefined;
+      this._currentRepo = undefined;
       if (this._debounce) {
         clearTimeout(this._debounce);
         this._debounce = undefined;
@@ -80,6 +158,30 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         this._view = undefined;
       }
     });
+  }
+
+  selectAll(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      return;
+    }
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    for (const p of getAllSelectablePaths(repo)) {
+      set.delete(p);
+    }
+    this._postSnapshotImmediate(repo);
+  }
+
+  deselectAll(): void {
+    const repo = this._currentRepo;
+    if (!repo) {
+      return;
+    }
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    for (const p of getAllSelectablePaths(repo)) {
+      set.add(p);
+    }
+    this._postSnapshotImmediate(repo);
   }
 
   private _registerGitWorkspaceListeners(api: API): void {
@@ -158,6 +260,33 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  private _getOrCreateDeselectedSet(repoRoot: string): Set<string> {
+    let set = this._deselectedByRepoRoot.get(repoRoot);
+    if (!set) {
+      set = new Set<string>();
+      this._deselectedByRepoRoot.set(repoRoot, set);
+    }
+    return set;
+  }
+
+  private _pruneDeselected(repo: Repository): void {
+    const root = repo.rootUri.fsPath;
+    const set = this._deselectedByRepoRoot.get(root);
+    if (!set) {
+      return;
+    }
+    const validSelectable = new Set(getAllSelectablePaths(repo));
+    for (const p of [...set]) {
+      if (!validSelectable.has(p)) {
+        set.delete(p);
+      }
+    }
+  }
+
+  private _isSelectablePath(repo: Repository, p: string): boolean {
+    return new Set(getAllSelectablePaths(repo)).has(p);
+  }
+
   private async _ensureRepoSubscription(api: API | undefined): Promise<void> {
     const view = this._view;
     if (!view) {
@@ -167,6 +296,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     if (!api) {
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = undefined;
+      this._currentRepo = undefined;
       const empty = emptyRepoSnapshot();
       const snap: HostToWebviewMessage = {
         protocolVersion: PROTOCOL_VERSION,
@@ -183,6 +313,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     if (!repo) {
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = undefined;
+      this._currentRepo = undefined;
       const empty = emptyRepoSnapshot();
       const snap: HostToWebviewMessage = {
         protocolVersion: PROTOCOL_VERSION,
@@ -197,6 +328,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     if (this._subscribedRepoRoot !== root) {
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = root;
+      this._getOrCreateDeselectedSet(root);
 
       this._repoDisposables.push(
         repo.state.onDidChange(() => {
@@ -223,12 +355,25 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     }, delayMs);
   }
 
+  private _postSnapshotImmediate(repo: Repository): void {
+    if (this._debounce) {
+      clearTimeout(this._debounce);
+      this._debounce = undefined;
+    }
+    this._postSnapshot(repo);
+  }
+
   private _postSnapshot(repo: Repository): void {
     const view = this._view;
     if (!view) {
       return;
     }
-    const payload = buildRepoSnapshot(repo);
+
+    this._currentRepo = repo;
+    this._pruneDeselected(repo);
+
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    const payload = buildRepoSnapshot(repo, set);
     const msg: HostToWebviewMessage = {
       protocolVersion: PROTOCOL_VERSION,
       type: 'repoSnapshot',
@@ -272,7 +417,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     <main class="main">
       <p id="status" class="status">Loading…</p>
       <p id="repo" class="repo" hidden></p>
-      <section id="changes" class="changes" hidden></section>
+      <section id="changes" class="changes" hidden tabindex="-1"></section>
     </main>
   </div>
   <script nonce="${nonce}" src="${scriptUri}"></script>

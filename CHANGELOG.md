@@ -13,13 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Phase 2: Selection + select all.
 - Phase 3: Stage / unstage / discard from webview.
 - Phase 4: Commit message + plain commit (+ auto-stage selected).
 - Phase 5: Amend + message defaulting from HEAD.
 - Phase 6: Push + force-with-lease flow.
 - Phase 7: Stash list + pop/apply/drop.
 - Phase 8: Polish, settings, shortcuts.
+
+## [0.3.0] - 2026-05-13
+
+### Added
+
+- **Phase 2 — Selection model:** host keeps a per-repo set of **deselected** paths; `repoSnapshot` includes `deselectedPaths` and each file includes `selected` (protocol **v3**).
+- **Webview:** per-file checkboxes (staged / changes / untracked), group header checkboxes with tri-state (merge conflicts remain non-selectable), **Select all** / **Deselect all** toolbar, and **Cmd/Ctrl+A** to select all when the changes panel is focused.
+- **Commands:** `commitDock.selectAll` and `commitDock.deselectAll` (palette + activation) mirroring the webview actions.
 
 ## [0.2.0] - 2026-05-13
 
@@ -59,7 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundled **@vscode/codicons** into `dist/webview/codicons/` at build time.
 - ESLint, Prettier, `README`, and this changelog.
 
-[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/vedanthvdev/commit-dock/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/vedanthvdev/commit-dock/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/vedanthvdev/commit-dock/releases/tag/v0.1.0
