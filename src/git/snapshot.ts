@@ -53,6 +53,74 @@ export function getAllSelectablePaths(repo: Repository): string[] {
   ];
 }
 
+/** Paths that are both selectable and not in the deselected set. */
+export function getSelectedSelectablePaths(repo: Repository, deselected: ReadonlySet<string>): string[] {
+  return getAllSelectablePaths(repo).filter((p) => !deselected.has(p));
+}
+
+/** Selected paths that can be staged (working tree or untracked). */
+export function pathsToStage(repo: Repository, selectedPaths: readonly string[]): string[] {
+  const unstaged = new Set(repo.state.workingTreeChanges.map((c) => c.uri.fsPath));
+  const untracked = new Set(repo.state.untrackedChanges.map((c) => c.uri.fsPath));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of selectedPaths) {
+    if (seen.has(p)) {
+      continue;
+    }
+    if (!unstaged.has(p) && !untracked.has(p)) {
+      continue;
+    }
+    seen.add(p);
+    out.push(p);
+  }
+  return out;
+}
+
+/** Selected paths that are currently staged (in the index). */
+export function pathsToUnstage(repo: Repository, selectedPaths: readonly string[]): string[] {
+  const staged = new Set(repo.state.indexChanges.map((c) => c.uri.fsPath));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of selectedPaths) {
+    if (seen.has(p)) {
+      continue;
+    }
+    if (!staged.has(p)) {
+      continue;
+    }
+    seen.add(p);
+    out.push(p);
+  }
+  return out;
+}
+
+export type DiscardPartition = { clean: string[]; restore: string[] };
+
+/** Selected paths that can be discarded from working tree / untracked (never staged-only). */
+export function pathsToDiscard(repo: Repository, selectedPaths: readonly string[]): DiscardPartition {
+  const untracked = new Set(repo.state.untrackedChanges.map((c) => c.uri.fsPath));
+  const working = new Set(repo.state.workingTreeChanges.map((c) => c.uri.fsPath));
+  const clean: string[] = [];
+  const restore: string[] = [];
+  const seenClean = new Set<string>();
+  const seenRestore = new Set<string>();
+  for (const p of selectedPaths) {
+    if (untracked.has(p)) {
+      if (!seenClean.has(p)) {
+        seenClean.add(p);
+        clean.push(p);
+      }
+      continue;
+    }
+    if (working.has(p) && !seenRestore.has(p)) {
+      seenRestore.add(p);
+      restore.push(p);
+    }
+  }
+  return { clean, restore };
+}
+
 function statusLabel(status: Status): string {
   switch (status) {
     case Status.INDEX_MODIFIED:

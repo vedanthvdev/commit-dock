@@ -68,7 +68,34 @@ function wireSelectionToolbar(
     vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'deselectAll' });
   });
 
-  toolbar.append(selectAll, deselectAll);
+  const stage = document.createElement('button');
+  stage.type = 'button';
+  stage.className = 'selection-toolbar__btn';
+  stage.textContent = 'Stage';
+  stage.title = 'Stage selected changes and untracked files';
+  stage.addEventListener('click', () => {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'stageSelected' });
+  });
+
+  const unstage = document.createElement('button');
+  unstage.type = 'button';
+  unstage.className = 'selection-toolbar__btn';
+  unstage.textContent = 'Unstage';
+  unstage.title = 'Remove selected files from the index';
+  unstage.addEventListener('click', () => {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'unstageSelected' });
+  });
+
+  const discard = document.createElement('button');
+  discard.type = 'button';
+  discard.className = 'selection-toolbar__btn selection-toolbar__btn--danger';
+  discard.textContent = 'Discard';
+  discard.title = 'Delete selected untracked files and revert working tree changes';
+  discard.addEventListener('click', () => {
+    vscodeApi.postMessage({ protocolVersion: PROTOCOL_VERSION, type: 'discardSelected' });
+  });
+
+  toolbar.append(selectAll, deselectAll, stage, unstage, discard);
 }
 
 function wireChangesHotkeys(
