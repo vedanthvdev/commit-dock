@@ -67,4 +67,51 @@ export function registerHistoryCommands(context: vscode.ExtensionContext): void 
       }
     }),
   );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('commitDock.revertCommit', async () => {
+      const api = await getGitApi({ silent: true });
+      const repo = api ? pickPrimaryRepository(api) : undefined;
+      if (!repo) {
+        void vscode.window.showWarningMessage('Commit Dock: no Git repository is active.');
+        return;
+      }
+      const root = repo.rootUri.fsPath;
+      if (!(await requireCleanWorkingTree(root, 'revert'))) {
+        return;
+      }
+      const raw = await vscode.window.showInputBox({
+        title: 'Revert commit',
+        prompt: 'Enter a commit SHA (7–40 hex characters) to revert with `git revert --no-edit`',
+        validateInput: (v) => {
+          if (!v.trim()) {
+            return 'Enter a commit SHA.';
+          }
+          if (!isLikelySha(v)) {
+            return 'Use a hex SHA (at least 7 characters, at most 40).';
+          }
+          return undefined;
+        },
+      });
+      if (!raw) {
+        return;
+      }
+      const sha = raw.trim();
+      const confirm = await vscode.window.showWarningMessage(
+        `Create a new commit that reverts ${sha.slice(0, 7)}?`,
+        { modal: true, detail: 'Runs: git revert --no-edit (fails if the commit is not reachable or already reverted).' },
+        'Revert',
+      );
+      if (confirm !== 'Revert') {
+        return;
+      }
+      try {
+        await execFileAsync('git', ['revert', '--no-edit', sha], { cwd: root, maxBuffer: 2_000_000 });
+        void vscode.window.showInformationMessage(`Commit Dock: reverted ${sha.slice(0, 7)}.`);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        void vscode.window.showErrorMessage(`Commit Dock: revert failed — ${msg}`);
+      }
+    }),
+  );
 }

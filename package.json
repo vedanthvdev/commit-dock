@@ -42,7 +42,8 @@
     "onCommand:commitDock.openExternalMergeTool",
     "onCommand:commitDock.openFirstMergeConflictDiff",
     "onCommand:commitDock.refreshCommitView",
-    "onCommand:commitDock.cherryPickCommit"
+    "onCommand:commitDock.cherryPickCommit",
+    "onCommand:commitDock.revertCommit"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -106,6 +107,11 @@
       {
         "command": "commitDock.cherryPickCommit",
         "title": "Cherry-pick Commit…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.revertCommit",
+        "title": "Revert Commit…",
         "category": "Commit Dock"
       },
       {
