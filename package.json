@@ -48,7 +48,8 @@
     "onCommand:commitDock.showRecentCommits",
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
-    "onCommand:commitDock.compareWorkingTreeWithRef"
+    "onCommand:commitDock.compareWorkingTreeWithRef",
+    "onCommand:commitDock.copyActiveEditorRelativePath"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -142,6 +143,11 @@
       {
         "command": "commitDock.compareWorkingTreeWithRef",
         "title": "Compare Working Tree with Ref (name-status)…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.copyActiveEditorRelativePath",
+        "title": "Copy Active Editor Relative Path",
         "category": "Commit Dock"
       },
       {
