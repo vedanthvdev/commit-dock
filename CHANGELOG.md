@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1] - 2026-05-13
 
+### Added
+
+- GitHub Actions workflow to **compile** and **lint** on every push and pull request.
+
 ### Fixed
 
 - **Git API bootstrap:** avoid hanging forever if `initialized` never fires; dispose `onDidChangeState` listener; add 15s timeout with user-facing warning when not in silent mode.
