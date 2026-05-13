@@ -116,6 +116,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         void this.pushForceWithLease();
       }),
     );
+    this._context.subscriptions.push(
+      vscode.commands.registerCommand('commitDock.refreshCommitView', () => {
+        void this._onGitContextMaybeChanged();
+      }),
+    );
   }
 
   resolveWebviewView(

@@ -40,7 +40,8 @@
     "onCommand:commitDock.createBranchFromHead",
     "onCommand:commitDock.copyHeadRevision",
     "onCommand:commitDock.openExternalMergeTool",
-    "onCommand:commitDock.openFirstMergeConflictDiff"
+    "onCommand:commitDock.openFirstMergeConflictDiff",
+    "onCommand:commitDock.refreshCommitView"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -94,6 +95,11 @@
       {
         "command": "commitDock.openFirstMergeConflictDiff",
         "title": "Open First Merge Conflict (Built-in Diff)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.refreshCommitView",
+        "title": "Refresh Commit View",
         "category": "Commit Dock"
       },
       {
