@@ -29,6 +29,7 @@
   "activationEvents": [
     "onView:commitDock.commitView",
     "onCommand:commitDock.showCommitView",
+    "onCommand:commitDock.openExtensionSettings",
     "onCommand:commitDock.selectAll",
     "onCommand:commitDock.deselectAll",
     "onCommand:commitDock.stageSelected",
@@ -84,6 +85,11 @@
       {
         "command": "commitDock.showCommitView",
         "title": "Focus Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.openExtensionSettings",
+        "title": "Open Commit Dock Settings",
         "category": "Commit Dock"
       },
       {
