@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.11] - 2026-05-13
+
+### Changed
+
+- [#65](https://github.com/vedanthvdev/commit-dock/pull/65): COMMITDOCK-62: Reveal primary repository in OS
+
 ## [0.9.10] - 2026-05-13
 
 ### Changed
