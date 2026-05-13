@@ -73,10 +73,13 @@ async function loadCachedTheme(themeJsonFsPath: string): Promise<CachedTheme | u
 
 async function languageIdsForPaths(paths: readonly string[]): Promise<Map<string, string>> {
   const uniq = [...new Set(paths.filter((p) => p.length > 0))];
+  /** Opening documents is expensive; cap work for huge snapshots (icons still resolve by extension). */
+  const MAX_LANG_PATHS = 400;
+  const capped = uniq.length > MAX_LANG_PATHS ? uniq.slice(0, MAX_LANG_PATHS) : uniq;
   const out = new Map<string, string>();
   const chunk = 16;
-  for (let i = 0; i < uniq.length; i += chunk) {
-    const slice = uniq.slice(i, i + chunk);
+  for (let i = 0; i < capped.length; i += chunk) {
+    const slice = capped.slice(i, i + chunk);
     await Promise.all(
       slice.map(async (p) => {
         try {
