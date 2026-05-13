@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.9.10",
+  "version": "0.9.6",
   "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
@@ -39,7 +39,8 @@
     "onCommand:commitDock.checkoutLocalBranch",
     "onCommand:commitDock.createBranchFromHead",
     "onCommand:commitDock.copyHeadRevision",
-    "onCommand:commitDock.openExternalMergeTool"
+    "onCommand:commitDock.openExternalMergeTool",
+    "onCommand:commitDock.openFirstMergeConflictDiff"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -88,6 +89,11 @@
       {
         "command": "commitDock.openExternalMergeTool",
         "title": "Open External Merge Tool for Conflict…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.openFirstMergeConflictDiff",
+        "title": "Open First Merge Conflict (Built-in Diff)",
         "category": "Commit Dock"
       },
       {
