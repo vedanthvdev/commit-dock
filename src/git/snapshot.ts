@@ -227,6 +227,14 @@ function toFile(
   };
 }
 
+/** Branch name or detached `HEAD` commit id for clipboard (no upstream decoration). */
+export function headRefClipboardText(head: Branch | undefined): string | undefined {
+  if (!head?.commit) {
+    return undefined;
+  }
+  return head.name ? head.name : head.commit;
+}
+
 function headDisplayLabel(head: Branch | undefined): string | undefined {
   if (!head?.commit) {
     return undefined;
