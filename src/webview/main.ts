@@ -839,6 +839,30 @@ function wireChangesToolbar(
     }),
   );
 
+  toolbar.appendChild(
+    createToolbarIconButton('Expand all change groups', 'codicon-expand-all', () => {
+      const ch = document.getElementById('changes');
+      if (!ch) {
+        return;
+      }
+      ch.querySelectorAll<HTMLDetailsElement>('details.changes__group').forEach((d) => {
+        d.open = true;
+      });
+    }),
+  );
+
+  toolbar.appendChild(
+    createToolbarIconButton('Collapse all change groups', 'codicon-collapse-all', () => {
+      const ch = document.getElementById('changes');
+      if (!ch) {
+        return;
+      }
+      ch.querySelectorAll<HTMLDetailsElement>('details.changes__group').forEach((d) => {
+        d.open = false;
+      });
+    }),
+  );
+
   appendToolbarSeparator(toolbar);
 
   toolbar.appendChild(
