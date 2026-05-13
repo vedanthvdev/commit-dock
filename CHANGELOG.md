@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Repository chrome:** snapshots now include **`headLabel`** (branch name or `detached @ …`) shown beside the repo folder in the Commit webview; protocol **16**.
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
+- **Stash:** palette **Stash Working Tree (with message)…** creates a stash (including unversioned files) using the same helper as Quick stash, with an editable default message.
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
