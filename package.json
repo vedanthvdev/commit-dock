@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.9.10",
+  "version": "0.9.6",
   "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
@@ -44,7 +44,8 @@
     "onCommand:commitDock.refreshCommitView",
     "onCommand:commitDock.cherryPickCommit",
     "onCommand:commitDock.revertCommit",
-    "onCommand:commitDock.stashWithMessage"
+    "onCommand:commitDock.stashWithMessage",
+    "onCommand:commitDock.showRecentCommits"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -118,6 +119,11 @@
       {
         "command": "commitDock.stashWithMessage",
         "title": "Stash Working Tree (with message)…",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.showRecentCommits",
+        "title": "Show Recent Commits (Output)",
         "category": "Commit Dock"
       },
       {
