@@ -1,7 +1,11 @@
-# Publishes to the Visual Studio Marketplace when a semver tag vX.Y.Z is pushed
-# and matches package.json "version". Also uploads the VSIX to a GitHub Release.
+# On tag push v*.*.* matching package.json "version":
+# 1) Build and attach a VSIX to a GitHub Release (always, using GITHUB_TOKEN).
+# 2) Publish to the Visual Studio Marketplace only when VSCE_PAT is configured.
 #
-# Required repository secret:
+# Previously the workflow failed before creating a GitHub Release when VSCE_PAT
+# was missing, which left the Releases page empty for new tags.
+#
+# Optional repository secret (Marketplace only):
 #   VSCE_PAT — PAT with "Marketplace (Manage)" scope
 #   https://code.visualstudio.com/api/working-with-extensions/publishing-extension
 
@@ -16,7 +20,7 @@ permissions:
   contents: write
 
 jobs:
-  marketplace:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,25 +47,32 @@ jobs:
       - name: Package VSIX
         run: npm run package
 
-      - name: Check marketplace token
+      - name: Create or update GitHub Release
         env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -z "$VSCE_PAT" ]; then
-            echo "::error::Configure the VSCE_PAT repository secret (Visual Studio Marketplace PAT with Marketplace Manage scope)."
+          set -euo pipefail
+          VSIX="$(ls -1 ./*.vsix | head -n1)"
+          if [ -z "${VSIX}" ] || [ ! -f "${VSIX}" ]; then
+            echo "::error::No VSIX found after npm run package"
             exit 1
+          fi
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release exists; uploading VSIX (replace if present)"
+            gh release upload "$GITHUB_REF_NAME" "$VSIX" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" "$VSIX" \
+              --title "Commit Dock ${GITHUB_REF_NAME}" \
+              --generate-notes
           fi
 
       - name: Publish to Visual Studio Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
         run: |
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "::notice::VSCE_PAT is not set — skipping Marketplace publish. The GitHub Release with the VSIX is already available."
+            exit 0
+          fi
           VSIX="$(ls -1 ./*.vsix | head -n1)"
           npx --yes @vscode/vsce@3.3.0 publish --no-dependencies --packagePath "$VSIX"
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VSIX="$(ls -1 ./*.vsix | head -n1)"
-          gh release create "$GITHUB_REF_NAME" "$VSIX" --title "Commit Dock ${GITHUB_REF_NAME}" --generate-notes

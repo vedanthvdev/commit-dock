@@ -2,7 +2,7 @@
 
 **Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
 
-> **Status:** current release is **`v0.9.0`** (Phase 8: settings, command palette category, default keybinding, README limitations). See [CHANGELOG.md](CHANGELOG.md).
+> **Status:** current release is **`v0.9.1`** (release pipeline: GitHub Releases no longer blocked by Marketplace secret). See [CHANGELOG.md](CHANGELOG.md).
 
 ## Requirements
 
@@ -58,9 +58,12 @@ CI runs on **pushes to `master`** and on **pull requests targeting `master`**.
 
 ## Releasing
 
-1. Bump **`package.json` `version`** and **`CHANGELOG.md`** on `master`, merge, then tag **`vX.Y.Z`** on that commit (the tag must match the version string).
-2. Add repository secret **`VSCE_PAT`** (Visual Studio Marketplace PAT with **Marketplace (Manage)** scope).
-3. Pushing the tag runs [`.github/workflows/release.yml`](.github/workflows/release.yml): compile, lint, **`vsce publish`**, and a **GitHub Release** with the VSIX.
+1. Bump **`package.json` `version`** and **`CHANGELOG.md`** on `master`, merge, then create an annotated or lightweight tag **`vX.Y.Z`** on that commit. The tag **must** match the version string (for example tag **`v0.9.1`** for version **`0.9.1`**).
+2. Push the tag: `git push origin vX.Y.Z`. [`.github/workflows/release.yml`](.github/workflows/release.yml) runs on that tag push.
+3. **GitHub Release:** the workflow **always** builds the VSIX and **creates or updates** a [GitHub Release](https://github.com/vedanthvdev/commit-dock/releases) for that tag, attaching the `.vsix` (using the default **`GITHUB_TOKEN`**). You do **not** need **`VSCE_PAT`** for the Release to appear.
+4. **Visual Studio Marketplace (optional):** add repository secret **`VSCE_PAT`** (PAT with **Marketplace (Manage)** scope). If it is missing, the workflow **skips** `vsce publish` with a notice and still completes successfully so the GitHub Release is not blocked.
+
+**If older tags never created a Release** (for example the workflow used to fail before `gh release create` when `VSCE_PAT` was unset), merge the fix, bump version, push a new tag, or create a release manually from **Releases → Draft a new release** and upload the VSIX from `npm run package` locally.
 
 ## Versioning
 
