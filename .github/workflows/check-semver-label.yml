@@ -1,0 +1,70 @@
+# Require exactly one `semver:*` label on every non-draft PR to `master`, matching the
+# pattern used by https://github.com/dayseam/dayseam (defense-in-depth with branch
+# protection). `semver:none` means merge without a version bump or release train.
+
+name: check-semver-label
+
+on:
+  pull_request:
+    types: [opened, labeled, unlabeled, synchronize, reopened, ready_for_review]
+    branches: [master]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: semver-label-${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: exactly-one-semver-label
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const allowed = [
+              "semver:major",
+              "semver:minor",
+              "semver:patch",
+              "semver:none",
+            ];
+            const pr = context.payload.pull_request;
+            // Webhook payloads can omit or lag labels; read current labels from the API.
+            const { data: labelObjs } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              per_page: 100,
+            });
+            const labels = labelObjs.map((l) => l.name);
+            const legacySkip = labels.includes("skip-semver");
+            const semver = labels.filter((l) => l.startsWith("semver:"));
+
+            if (legacySkip) {
+              core.setFailed(
+                "Label skip-semver is deprecated. Remove it and use semver:none (exactly one semver:* label is required). See README → Releasing."
+              );
+              return;
+            }
+
+            if (semver.length !== 1) {
+              core.setFailed(
+                `PR must have exactly one semver:* label. Found: ${JSON.stringify(semver)}. Use semver:none when this merge must not ship a new extension version.`
+              );
+              return;
+            }
+            if (!allowed.includes(semver[0])) {
+              core.setFailed(
+                `Unknown semver label: ${semver[0]}. Allowed: ${allowed.join(", ")}.`
+              );
+              return;
+            }

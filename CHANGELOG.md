@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.6] - 2026-05-13
+
+### Chore
+
+- Bump version to confirm **Auto-tag** → **`gh workflow run` Release** after merges to `master` (no manual dispatch).
+
 ## [0.9.5] - 2026-05-13
 
 ### Fixed

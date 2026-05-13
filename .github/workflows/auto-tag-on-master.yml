@@ -30,7 +30,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: auto-tag-master
+  group: commit-dock-release-line
   cancel-in-progress: false
 
 jobs:
