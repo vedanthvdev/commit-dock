@@ -49,6 +49,7 @@
     "onCommand:commitDock.showRecentCommits",
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
+    "onCommand:commitDock.showShortGitStatus",
     "onCommand:commitDock.compareWorkingTreeWithRef",
     "onCommand:commitDock.copyActiveEditorRelativePath",
     "onCommand:commitDock.revealPrimaryRepoInOS",
@@ -148,6 +149,11 @@
       {
         "command": "commitDock.fetchAndRefresh",
         "title": "Fetch Remotes and Refresh Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.showShortGitStatus",
+        "title": "Show Short Git Status (Output)",
         "category": "Commit Dock"
       },
       {
