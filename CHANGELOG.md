@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Remote sync:** palette **Fetch Remotes and Refresh Commit View** runs `git fetch --all --prune` for the primary repository, then triggers **Refresh Commit View** on success.
 - **Compare:** palette **Compare Working Tree with Ref (name-status)…** prints `git diff --name-status <ref>...HEAD` to a **Commit Dock: Compare** output channel (read-only, bounded output).
 - **Workspace:** palette **Copy Active Editor Relative Path**
-- **Workspace:** palette **Reveal Primary Repository in OS** opens the OS file manager at the primary repository root via the built-in `revealFileInOS` command.
+- **Workspace:** palette **Reveal Primary Repository in OS**
+- **Workspace:** palette **Open Terminal at Primary Repository** creates a new integrated terminal with `cwd` set to the primary repository root.
+ opens the OS file manager at the primary repository root via the built-in `revealFileInOS` command.
  copies `workspace.asRelativePath` for the current file editor when it is a `file:` URI under the open workspace.
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Commit view refresh:** palette command **Refresh Commit View** re-runs primary-repo detection and pushes an updated snapshot to the Commit webview (same path as automatic Git listeners).
