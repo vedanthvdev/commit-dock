@@ -2,8 +2,9 @@ import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { getConfirmBeforeDiscard, getSnapshotDebounceMs } from '../config';
+import { getConfirmBeforeDiscard, getShowActivityBarBadge, getSnapshotDebounceMs } from '../config';
 import { getGitApi } from '../git/api';
+import { countWorkspaceChangePaths } from '../git/repo-change-model';
 import {
   buildRepoSnapshot,
   emptyRepoSnapshot,
@@ -64,6 +65,9 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
           if (this._currentRepo) {
             this._postSnapshotImmediate(this._currentRepo);
           }
+        }
+        if (e.affectsConfiguration('commitDock')) {
+          this._updateActivityBarBadge(this._currentRepo);
         }
       }),
     );
@@ -326,6 +330,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     );
 
     webviewView.onDidDispose(() => {
+      webviewView.badge = undefined;
       vscode.Disposable.from(...disposables).dispose();
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = undefined;
@@ -921,6 +926,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       };
       void view.webview.postMessage(snap);
       this._postStashListMessage({ ok: true, entries: [] });
+      this._updateActivityBarBadge(undefined);
       return;
     }
 
@@ -939,6 +945,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       };
       void view.webview.postMessage(snap);
       this._postStashListMessage({ ok: true, entries: [] });
+      this._updateActivityBarBadge(undefined);
       return;
     }
 
@@ -1040,6 +1047,33 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     };
     void view.webview.postMessage(msg);
     void this._refreshStashList(repo);
+    this._updateActivityBarBadge(repo);
+  }
+
+  private _updateActivityBarBadge(repo: Repository | undefined): void {
+    const view = this._view;
+    if (!view) {
+      return;
+    }
+    if (!getShowActivityBarBadge()) {
+      view.badge = undefined;
+      return;
+    }
+    if (!repo) {
+      view.badge = undefined;
+      return;
+    }
+    const n = countWorkspaceChangePaths(repo);
+    if (n <= 0) {
+      view.badge = undefined;
+      return;
+    }
+    const value = Math.min(n, 9999);
+    const display = n > 9999 ? '9999+' : String(n);
+    view.badge = {
+      value,
+      tooltip: n === 1 ? '1 pending change in the primary repository' : `${display} pending changes in the primary repository`,
+    };
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, nonce: string): string {
