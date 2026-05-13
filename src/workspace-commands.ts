@@ -47,6 +47,18 @@ export function registerWorkspaceCommands(context: vscode.ExtensionContext): voi
       await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(fsPath));
     }),
 
+    vscode.commands.registerCommand('commitDock.copyPrimaryRepositoryRoot', async () => {
+      const api = await getGitApi({ silent: true });
+      const repo = api ? pickPrimaryRepository(api) : undefined;
+      const fsPath = repo?.rootUri.fsPath;
+      if (!fsPath) {
+        void vscode.window.showWarningMessage('Commit Dock: no Git repository is active.');
+        return;
+      }
+      await vscode.env.clipboard.writeText(fsPath);
+      void vscode.window.showInformationMessage(`Commit Dock: copied ${fsPath}`);
+    }),
+
     vscode.commands.registerCommand('commitDock.copyActiveEditorRelativePath', async () => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
