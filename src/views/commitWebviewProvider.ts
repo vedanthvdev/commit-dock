@@ -16,6 +16,8 @@ import {
   pathsToUnstage,
   pickPrimaryRepository,
 } from '../git/snapshot';
+import { fileCodiconFromPath } from '../git/file-codicons';
+import { enrichRepoSnapshotFileIcons, clearFileIconThemeCache, fileIconThemeResourceRoots } from '../icons/snapshotFileIcons';
 import { listHeadCommitRelativePaths } from '../git/head-commit-files';
 import { createStashWithRepoApiFallback, type RepoWithOptionalCreateStash } from '../git/stash-create-cli';
 import { restoreWorkingTreePathsCli } from '../git/worktree-restore';
@@ -24,6 +26,7 @@ import {
   parseWebviewMessage,
   type AmendHeadFileEntry,
   type HostToWebviewMessage,
+  type RepoSnapshot,
   type StashSnapshotEntry,
 } from '../protocol';
 import { ForcePushMode, type API, type Repository } from '../git/git-api';
@@ -52,6 +55,24 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._context.subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => {
         void this._onGitContextMaybeChanged();
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.workspace.onDidChangeConfiguration((e) => {
+        if (e.affectsConfiguration('workbench.iconTheme')) {
+          clearFileIconThemeCache();
+          if (this._currentRepo) {
+            this._postSnapshotImmediate(this._currentRepo);
+          }
+        }
+      }),
+    );
+    this._context.subscriptions.push(
+      vscode.window.onDidChangeActiveColorTheme(() => {
+        clearFileIconThemeCache();
+        if (this._currentRepo) {
+          this._postSnapshotImmediate(this._currentRepo);
+        }
       }),
     );
 
@@ -100,7 +121,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._view = webviewView;
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist')],
+      localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist'), ...fileIconThemeResourceRoots()],
     };
 
     const nonce = getNonce();
@@ -982,7 +1003,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         seenAbs.add(dedupeKey);
         const uri = vscode.Uri.file(normAbs);
         const relPath = vscode.workspace.asRelativePath(uri, true) || rel;
-        entries.push({ path: normAbs, relPath });
+        entries.push({
+          path: normAbs,
+          relPath,
+          fileIcon: { kind: 'codicon', classes: fileCodiconFromPath(normAbs) },
+        });
       }
       if (entries.length > 0) {
         amendHeadFiles = entries;
@@ -991,7 +1016,9 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       amendHeadFiles = undefined;
     }
 
-    const payload = amendHeadFiles ? { ...base, amendHeadFiles } : base;
+    let payload: RepoSnapshot = amendHeadFiles ? { ...base, amendHeadFiles } : base;
+    payload = await enrichRepoSnapshotFileIcons(view.webview, payload);
+
     const msg: HostToWebviewMessage = {
       protocolVersion: PROTOCOL_VERSION,
       type: 'repoSnapshot',
@@ -1118,6 +1145,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       </div>
     </div>
   </div>
+  <script nonce="${nonce}">window.__commitDockCspNonce=${JSON.stringify(nonce)};</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
