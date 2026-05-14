@@ -860,17 +860,10 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const hello: HostToWebviewMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      type: 'hello',
-      payload: { message: 'Commit Dock' },
-    };
-    void view.webview.postMessage(hello);
-
     const api = await getGitApi({ silent: true });
 
     let ok: boolean;
-    let detail: string;
+    let detail: string | undefined;
     if (!api) {
       ok = false;
       detail =
@@ -880,8 +873,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       detail = 'Open a folder that contains a Git repository.';
     } else {
       ok = true;
-      const n = api.repositories.length;
-      detail = `${n} Git repositor${n === 1 ? 'y' : 'ies'} detected.`;
+      detail = undefined;
     }
 
     const gitStatus: HostToWebviewMessage = {
@@ -1134,13 +1126,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <div id="app" class="app">
-    <header class="header">
-      <span class="codicon codicon-git-commit header__icon" aria-hidden="true"></span>
-      <div class="header__text">
-        <span id="title" class="header__title">Commit Dock</span>
-        <p id="status" class="status">Loading…</p>
-      </div>
-    </header>
+    <div id="git-status-banner" class="git-status-banner git-status-banner--loading" role="status" aria-live="polite">Loading…</div>
 
     <div id="workspace" class="workspace" hidden>
       <nav class="tab-strip" role="tablist" aria-label="Commit Dock">

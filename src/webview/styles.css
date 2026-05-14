@@ -35,37 +35,29 @@ body {
   min-height: 0;
 }
 
-.header {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
+.git-status-banner {
   flex-shrink: 0;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.22));
-}
-
-.header__icon {
-  margin-top: 2px;
-  opacity: 0.85;
-}
-
-.header__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.header__title {
-  font-weight: 600;
-  font-size: calc(var(--vscode-font-size) * 1.02);
-}
-
-.status {
-  margin: 0;
+  margin: 0 0 8px;
+  padding: 6px 8px;
   font-size: calc(var(--vscode-font-size) * 0.92);
+  line-height: 1.4;
+  border-radius: 4px;
+}
+
+.git-status-banner--loading {
   color: var(--vscode-descriptionForeground);
-  line-height: 1.35;
+  background: var(--vscode-editorInfoBackground, rgba(30, 144, 255, 0.08));
+  border: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.25));
+}
+
+.git-status-banner--error {
+  color: var(--vscode-foreground);
+  background: var(--vscode-inputValidation-errorBackground, rgba(255, 80, 80, 0.12));
+  border: 1px solid var(--vscode-inputValidation-errorBorder, rgba(255, 80, 80, 0.45));
+}
+
+.git-status-banner[hidden] {
+  display: none;
 }
 
 .workspace {

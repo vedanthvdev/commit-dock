@@ -39,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Protocol:** host↔webview version is now **16** (new webview→host message for the merge-conflict banner shortcut).
+- **Commit webview:** removed the redundant top header (product title + “N Git repositories detected”) so the view leads with the change list and commit controls. A slim **status banner** only appears while loading or when Git / the folder is not usable.
+- **Protocol:** host↔webview version is now **16** (new webview→host message for the merge-conflict banner shortcut). The host no longer sends a separate **`hello`** message to the webview.
 - **Docs:** clarify that Marketplace **`/items?itemName=…`** pages can 404 in a browser even when `vsce show` succeeds; document `vscode:extension/…` and `@id:…` install paths.
 - **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
 - **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
@@ -48,12 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
-
-## [0.9.17] - 2026-05-14
-
-### Changed
-
-- [#80](https://github.com/vedanthvdev/commit-dock/pull/80): COMMITDOCK-77: Harden non-interactive Git subprocess defaults
 
 ## [0.9.6] - 2026-05-13
 

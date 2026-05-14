@@ -617,19 +617,26 @@ function main(): void {
     if (!msg || msg.protocolVersion !== PROTOCOL_VERSION) {
       return;
     }
-    if (msg.type === 'hello') {
-      const title = document.getElementById('title');
-      if (title) {
-        title.textContent = msg.payload.message;
-      }
-    }
     if (msg.type === 'gitStatus') {
       lastGitOk = msg.payload.ok;
-      updateCommitPanelState();
-      const status = document.getElementById('status');
-      if (status) {
-        status.textContent = msg.payload.detail ?? (msg.payload.ok ? 'Git ready.' : 'No Git repository.');
+      const banner = document.getElementById('git-status-banner');
+      if (banner) {
+        if (!lastGitOk) {
+          banner.hidden = false;
+          banner.classList.remove('git-status-banner--loading');
+          banner.classList.add('git-status-banner--error');
+          banner.setAttribute('role', 'alert');
+          banner.textContent =
+            msg.payload.detail ?? 'Built-in Git is unavailable or no repository is open.';
+        } else {
+          banner.hidden = true;
+          banner.classList.remove('git-status-banner--error');
+          banner.classList.add('git-status-banner--loading');
+          banner.removeAttribute('role');
+          banner.textContent = '';
+        }
       }
+      updateCommitPanelState();
     }
     if (msg.type === 'uiPreferences') {
       showCommitAndPushBtn = msg.payload.showCommitAndPush !== false;
@@ -649,19 +656,6 @@ function main(): void {
       }
       applyCommitFooterLayout();
       updateCommitPanelState();
-    }
-    if (msg.type === 'commitMessageInsert') {
-      if (textarea) {
-        const ins = msg.payload.text;
-        const cur = textarea.value;
-        if (cur.trim()) {
-          textarea.value = `${cur.trimEnd()}\n\n${ins}`;
-        } else {
-          textarea.value = ins;
-        }
-        persistCommitUi();
-        textarea.focus();
-      }
     }
     if (msg.type === 'headCommitMessage') {
       if (msg.payload.ok) {
