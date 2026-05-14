@@ -1,6 +1,6 @@
 # Commit Dock
 
-**Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options.
+**Commit Dock** is a [Visual Studio Code](https://code.visualstudio.com/) and **Cursor** extension that brings an IntelliJ-style commit workflow into the editor: one consistent **webview** for changed files, commit message, amend, stash, and safe push options. By default the same UI is available **in the bottom panel** next to Terminal / Problems (similar to [IntelliGit](https://marketplace.visualstudio.com/items?itemName=MaheshKok.intelligit)) **and** from the **Commit Dock** activity bar when **`commitDock.commitViewPlacement`** is `both`.
 
 > **Status:** see [GitHub Releases](https://github.com/vedanthvdev/commit-dock/releases) for the current VSIX. [CHANGELOG.md](CHANGELOG.md) tracks changes.
 
@@ -12,7 +12,7 @@
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `commitDock.commitViewPlacement` | `activityBar` | `activityBar` (default), bottom `panel` (next to Terminal / Problems), or `both` (mirrors IntelliGit-style split). |
+| `commitDock.commitViewPlacement` | `both` | `activityBar` (sidebar only), bottom `panel` (Terminal strip only), or `both` (default — matches IntelliJ-style dock next to Terminal). |
 | `commitDock.snapshotDebounceMs` | `150` | Wait after Git reports a change before rebuilding the file list (0–2000 ms). |
 | `commitDock.confirmBeforeDiscard` | `true` | If `false`, **Discard** runs immediately without a confirmation dialog. |
 | `commitDock.showActivityBarBadge` | `true` | When `true`, the Commit Dock activity bar icon shows how many paths have pending work in the **primary** repository (same scope as the Commit view). |
@@ -23,9 +23,13 @@ Configure under **Settings → Extensions → Commit Dock**, or edit `settings.j
 
 ## Explorer & editor context menus
 
-Right-click a **saved file** in the **Explorer** or editor tab / editor surface to open the **Commit Dock** submenu (same pattern as IntelliGit’s Git submenu on `editor/context`). From there you can **stage**, **unstage**, **open changes** (built-in `git.openChange`), **discard** (respects **`commitDock.confirmBeforeDiscard`**), **copy a workspace-relative path**, or **focus the Commit view**.
+Right-click a **saved file** in the **Explorer** or editor tab / editor surface to open the **Commit Dock** submenu (same pattern as IntelliGit’s Git submenu on `editor/context`). From there you can **stage**, **unstage**, **open changes** (built-in `git.openChange`), **discard** (respects **`commitDock.confirmBeforeDiscard`**), **copy a workspace-relative path**, **focus the Commit view**, or **open the bottom Commit Dock panel** (palette: **Open Commit Dock in Bottom Panel**).
 
 Menus appear for `file:` resources; actions resolve the Git repository that contains the path (not only the “primary” repo used by the Commit webview). When a change happens in the **primary** repository, the Commit view refreshes as usual.
+
+### Bottom panel (next to Terminal)
+
+Look for a **Commit Dock** tab in the **panel** strip (same row as **Terminal**, **Problems**, **Output**). If you previously set **`commitDock.commitViewPlacement`** to **`activityBar`**, the panel tab is still present — use **Command Palette → “Commit Dock: Open Commit Dock in Bottom Panel”** to jump there (and automatically switch the workspace setting to **`both`** if you were in activity-bar-only mode).
 
 ## Commands and keybindings
 
@@ -34,6 +38,7 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 | Command id | Title |
 | --- | --- |
 | `commitDock.showCommitView` | Focus Commit View |
+| `commitDock.openCommitDockBottomPanel` | Open / focus the bottom **Commit Dock** panel (upgrades `activityBar`-only placement to `both` in the workspace) |
 | `commitDock.stageResource` | Stage the selected file (Explorer / editor context) |
 | `commitDock.unstageResource` | Unstage the selected file |
 | `commitDock.openResourceChange` | Open built-in changes for the selected file |

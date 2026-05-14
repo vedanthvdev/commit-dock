@@ -4,15 +4,15 @@ export type CommitViewPlacement = 'activityBar' | 'panel' | 'both';
 
 export const COMMIT_DOCK_CONFIGURATION_SECTION = 'commitDock';
 
-/** Where the Commit webview appears: activity bar (default), bottom panel, or both (mirrors IntelliGit-style layout). */
+/** Where the Commit webview appears: activity bar, bottom panel, or both (IntelliGit-style dock next to Terminal). */
 export function getCommitViewPlacement(): CommitViewPlacement {
   const raw = vscode.workspace
     .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
-    .get<string>('commitViewPlacement', 'activityBar');
+    .get<string>('commitViewPlacement', 'both');
   if (raw === 'panel' || raw === 'both' || raw === 'activityBar') {
     return raw;
   }
-  return 'activityBar';
+  return 'both';
 }
 
 /** Debounce for Git `onDidChange` snapshot refresh (ms). */

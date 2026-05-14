@@ -14,7 +14,7 @@ import { registerResourceContextCommands } from './resource-context-commands';
 import { registerStashCommands } from './stash-commands';
 import { registerStatusCommands } from './status-commands';
 import { registerWorkspaceCommands } from './workspace-commands';
-import { registerCommitViewPlacement, focusCommitDockViews } from './view-placement';
+import { registerCommitViewPlacement, focusCommitDockViews, openCommitDockBottomPanel } from './view-placement';
 import { CommitWebviewProvider } from './views/commitWebviewProvider';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -47,6 +47,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.commands.registerCommand('commitDock.showCommitView', async () => {
       await focusCommitDockViews();
+    }),
+    vscode.commands.registerCommand('commitDock.openCommitDockBottomPanel', async () => {
+      await openCommitDockBottomPanel();
     }),
   );
 }

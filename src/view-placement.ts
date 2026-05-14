@@ -4,20 +4,12 @@ import { COMMIT_DOCK_CONFIGURATION_SECTION, getCommitViewPlacement } from './con
 /** When `true`, the Commit webview is contributed under the Commit Dock activity bar container. */
 export const CONTEXT_SHOW_ACTIVITY_COMMIT_VIEW = 'commitDock:showActivityBarCommitView';
 
-/** When `true`, the Commit webview is contributed under the bottom **Commit Dock** panel container. */
-export const CONTEXT_SHOW_PANEL_COMMIT_VIEW = 'commitDock:showPanelCommitView';
-
 export function syncCommitViewPlacementContexts(): void {
   const placement = getCommitViewPlacement();
   void vscode.commands.executeCommand(
     'setContext',
     CONTEXT_SHOW_ACTIVITY_COMMIT_VIEW,
     placement === 'activityBar' || placement === 'both',
-  );
-  void vscode.commands.executeCommand(
-    'setContext',
-    CONTEXT_SHOW_PANEL_COMMIT_VIEW,
-    placement === 'panel' || placement === 'both',
   );
 }
 
@@ -48,5 +40,26 @@ export async function focusCommitDockViews(): Promise<void> {
     } catch {
       // ignore
     }
+  }
+}
+
+/**
+ * Ensures the bottom **Commit Dock** panel tab is available (IntelliGit-style dock next to Terminal)
+ * and focuses it. If the user previously hid the panel by choosing **activity bar only**, this upgrades
+ * the workspace setting to **both** so the panel view is registered again.
+ */
+export async function openCommitDockBottomPanel(): Promise<void> {
+  const cfg = vscode.workspace.getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION);
+  const cur = cfg.get<string>('commitViewPlacement');
+  if (cur === 'activityBar') {
+    await cfg.update('commitViewPlacement', 'both', vscode.ConfigurationTarget.Workspace, false);
+    syncCommitViewPlacementContexts();
+  }
+  try {
+    await vscode.commands.executeCommand('workbench.view.extension.commit-dock-panel');
+  } catch {
+    void vscode.window.showWarningMessage(
+      'Commit Dock: could not open the bottom panel. Try **View → Open View… → Commit Dock** or check **commitDock.commitViewPlacement** in Settings.',
+    );
   }
 }

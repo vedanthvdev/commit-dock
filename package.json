@@ -2,7 +2,7 @@
   "name": "commit-dock",
   "displayName": "Commit Dock",
   "description": "IntelliJ-style commit UI: selectable changes, amend, stash, and safe force-push — in one consistent webview.",
-  "version": "0.10.0",
+  "version": "0.9.6",
   "publisher": "VedanthVasuDev",
   "license": "MIT",
   "icon": "media/commit-dock-128.png",
@@ -27,9 +27,11 @@
     "stash"
   ],
   "activationEvents": [
+    "workspaceContains:.git",
     "onView:commitDock.commitView",
     "onView:commitDock.panelCommitView",
     "onCommand:commitDock.showCommitView",
+    "onCommand:commitDock.openCommitDockBottomPanel",
     "onCommand:commitDock.selectAll",
     "onCommand:commitDock.deselectAll",
     "onCommand:commitDock.stageSelected",
@@ -92,8 +94,7 @@
         {
           "type": "webview",
           "id": "commitDock.panelCommitView",
-          "name": "Commit",
-          "when": "commitDock:showPanelCommitView"
+          "name": "Commit Dock"
         }
       ]
     },
@@ -101,6 +102,11 @@
       {
         "command": "commitDock.showCommitView",
         "title": "Focus Commit View",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.openCommitDockBottomPanel",
+        "title": "Open Commit Dock in Bottom Panel",
         "category": "Commit Dock"
       },
       {
@@ -285,6 +291,10 @@
         {
           "command": "commitDock.showCommitView",
           "group": "9_navigation@1"
+        },
+        {
+          "command": "commitDock.openCommitDockBottomPanel",
+          "group": "9_navigation@2"
         }
       ]
     },
@@ -301,13 +311,9 @@
       "properties": {
         "commitDock.commitViewPlacement": {
           "type": "string",
-          "enum": [
-            "activityBar",
-            "panel",
-            "both"
-          ],
-          "default": "activityBar",
-          "markdownDescription": "Where the **Commit** webview appears: the **Commit Dock** activity bar (default), the bottom **panel** next to Terminal / Problems (IntelliJ-style), or **both**."
+          "enum": ["activityBar", "panel", "both"],
+          "default": "both",
+          "markdownDescription": "Where the **Commit** webview appears in the **activity bar**, the bottom **panel** next to Terminal / Problems (IntelliJ-style, like [IntelliGit](https://marketplace.visualstudio.com/items?itemName=MaheshKok.intelligit)), or **both**. The bottom **Commit Dock** tab is always available in the panel strip; this setting controls whether the **activity bar** Commit entry is shown too (`activityBar` hides the sidebar entry; `panel` hides the activity bar entry; `both` shows both)."
         },
         "commitDock.snapshotDebounceMs": {
           "type": "number",
@@ -338,10 +344,7 @@
         },
         "commitDock.copyHeadRevisionFormat": {
           "type": "string",
-          "enum": [
-            "full",
-            "short"
-          ],
+          "enum": ["full", "short"],
           "default": "full",
           "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }
