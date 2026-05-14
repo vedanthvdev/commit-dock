@@ -28,8 +28,8 @@
   ],
   "activationEvents": [
     "onView:commitDock.commitView",
+    "onView:commitDock.panelCommitView",
     "onCommand:commitDock.showCommitView",
-    "onCommand:commitDock.openExtensionSettings",
     "onCommand:commitDock.selectAll",
     "onCommand:commitDock.deselectAll",
     "onCommand:commitDock.stageSelected",
@@ -40,7 +40,6 @@
     "onCommand:commitDock.checkoutLocalBranch",
     "onCommand:commitDock.createBranchFromHead",
     "onCommand:commitDock.copyHeadRevision",
-    "onCommand:commitDock.copyHeadBranchName",
     "onCommand:commitDock.openExternalMergeTool",
     "onCommand:commitDock.openFirstMergeConflictDiff",
     "onCommand:commitDock.refreshCommitView",
@@ -50,16 +49,14 @@
     "onCommand:commitDock.showRecentCommits",
     "onCommand:commitDock.pullFastForwardOnly",
     "onCommand:commitDock.fetchAndRefresh",
-    "onCommand:commitDock.showGitRemotes",
-    "onCommand:commitDock.showShortGitStatus",
-    "onCommand:commitDock.showWorkingTreeDiffStat",
     "onCommand:commitDock.compareWorkingTreeWithRef",
     "onCommand:commitDock.copyActiveEditorRelativePath",
-    "onCommand:commitDock.revealPrimaryRepoInOS",
-    "onCommand:commitDock.copyPrimaryRepositoryRoot",
-    "onCommand:commitDock.openTerminalAtPrimaryRepo",
-    "onCommand:commitDock.insertRecentCommitSubject",
-    "onCommand:commitDock.showRecentCommitGraph"
+    "onCommand:commitDock.showRecentCommitGraph",
+    "onCommand:commitDock.stageResource",
+    "onCommand:commitDock.unstageResource",
+    "onCommand:commitDock.openResourceChange",
+    "onCommand:commitDock.discardResource",
+    "onCommand:commitDock.copyResourceRelativePath"
   ],
   "extensionDependencies": [
     "vscode.git"
@@ -73,6 +70,13 @@
           "title": "Commit Dock",
           "icon": "media/commit-dock.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "commit-dock-panel",
+          "title": "Commit Dock",
+          "icon": "media/commit-dock.svg"
+        }
       ]
     },
     "views": {
@@ -80,7 +84,16 @@
         {
           "type": "webview",
           "id": "commitDock.commitView",
-          "name": "Commit"
+          "name": "Commit",
+          "when": "commitDock:showActivityBarCommitView"
+        }
+      ],
+      "commit-dock-panel": [
+        {
+          "type": "webview",
+          "id": "commitDock.panelCommitView",
+          "name": "Commit",
+          "when": "commitDock:showPanelCommitView"
         }
       ]
     },
@@ -88,11 +101,6 @@
       {
         "command": "commitDock.showCommitView",
         "title": "Focus Commit View",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.openExtensionSettings",
-        "title": "Open Commit Dock Settings",
         "category": "Commit Dock"
       },
       {
@@ -108,11 +116,6 @@
       {
         "command": "commitDock.copyHeadRevision",
         "title": "Copy HEAD Revision",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.copyHeadBranchName",
-        "title": "Copy HEAD Branch or Ref",
         "category": "Commit Dock"
       },
       {
@@ -161,21 +164,6 @@
         "category": "Commit Dock"
       },
       {
-        "command": "commitDock.showGitRemotes",
-        "title": "Show Git Remotes (Output)",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.showShortGitStatus",
-        "title": "Show Short Git Status (Output)",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.showWorkingTreeDiffStat",
-        "title": "Show Working Tree Diff Stat (Output)",
-        "category": "Commit Dock"
-      },
-      {
         "command": "commitDock.compareWorkingTreeWithRef",
         "title": "Compare Working Tree with Ref (name-status)…",
         "category": "Commit Dock"
@@ -183,26 +171,6 @@
       {
         "command": "commitDock.copyActiveEditorRelativePath",
         "title": "Copy Active Editor Relative Path",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.revealPrimaryRepoInOS",
-        "title": "Reveal Primary Repository in OS",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.copyPrimaryRepositoryRoot",
-        "title": "Copy Primary Repository Root",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.openTerminalAtPrimaryRepo",
-        "title": "Open Terminal at Primary Repository",
-        "category": "Commit Dock"
-      },
-      {
-        "command": "commitDock.insertRecentCommitSubject",
-        "title": "Insert Recent Commit Subject…",
         "category": "Commit Dock"
       },
       {
@@ -244,8 +212,82 @@
         "command": "commitDock.pushForceWithLease",
         "title": "Push (Force With Lease)",
         "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.stageResource",
+        "title": "Stage (Commit Dock)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.unstageResource",
+        "title": "Unstage (Commit Dock)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.openResourceChange",
+        "title": "Open Changes (Commit Dock)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.discardResource",
+        "title": "Discard Changes (Commit Dock)",
+        "category": "Commit Dock"
+      },
+      {
+        "command": "commitDock.copyResourceRelativePath",
+        "title": "Copy Workspace-Relative Path (Commit Dock)",
+        "category": "Commit Dock"
       }
     ],
+    "submenus": [
+      {
+        "id": "commitDock.resourceContext",
+        "label": "Commit Dock",
+        "icon": "$(git-commit)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "submenu": "commitDock.resourceContext",
+          "when": "resourceScheme == file && explorerResourceIsFolder == false && workspaceFolderCount != 0",
+          "group": "commitDock@30"
+        }
+      ],
+      "editor/context": [
+        {
+          "submenu": "commitDock.resourceContext",
+          "when": "resourceScheme == file",
+          "group": "commitDock@30"
+        }
+      ],
+      "commitDock.resourceContext": [
+        {
+          "command": "commitDock.stageResource",
+          "group": "1_stage@1"
+        },
+        {
+          "command": "commitDock.unstageResource",
+          "group": "1_stage@2"
+        },
+        {
+          "command": "commitDock.openResourceChange",
+          "group": "2_diff@1"
+        },
+        {
+          "command": "commitDock.discardResource",
+          "group": "3_destructive@1"
+        },
+        {
+          "command": "commitDock.copyResourceRelativePath",
+          "group": "4_clipboard@1"
+        },
+        {
+          "command": "commitDock.showCommitView",
+          "group": "9_navigation@1"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "commitDock.showCommitView",
@@ -257,6 +299,12 @@
     "configuration": {
       "title": "Commit Dock",
       "properties": {
+        "commitDock.commitViewPlacement": {
+          "type": "string",
+          "enum": ["activityBar", "panel", "both"],
+          "default": "activityBar",
+          "markdownDescription": "Where the **Commit** webview appears: the **Commit Dock** activity bar (default), the bottom **panel** next to Terminal / Problems (IntelliJ-style), or **both**."
+        },
         "commitDock.snapshotDebounceMs": {
           "type": "number",
           "default": 150,
@@ -286,10 +334,7 @@
         },
         "commitDock.copyHeadRevisionFormat": {
           "type": "string",
-          "enum": [
-            "full",
-            "short"
-          ],
+          "enum": ["full", "short"],
           "default": "full",
           "markdownDescription": "Controls **Copy HEAD Revision**: copy the full 40‑character SHA, or a **short** 7‑character prefix (still resolved from full `git rev-parse HEAD`)."
         }

@@ -1,6 +1,19 @@
 import * as vscode from 'vscode';
 
+export type CommitViewPlacement = 'activityBar' | 'panel' | 'both';
+
 export const COMMIT_DOCK_CONFIGURATION_SECTION = 'commitDock';
+
+/** Where the Commit webview appears: activity bar (default), bottom panel, or both (mirrors IntelliGit-style layout). */
+export function getCommitViewPlacement(): CommitViewPlacement {
+  const raw = vscode.workspace
+    .getConfiguration(COMMIT_DOCK_CONFIGURATION_SECTION)
+    .get<string>('commitViewPlacement', 'activityBar');
+  if (raw === 'panel' || raw === 'both' || raw === 'activityBar') {
+    return raw;
+  }
+  return 'activityBar';
+}
 
 /** Debounce for Git `onDidChange` snapshot refresh (ms). */
 export function getSnapshotDebounceMs(): number {
