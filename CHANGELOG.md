@@ -52,6 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.10.0] - 2026-05-14
+
+### Changed
+
+- [#84](https://github.com/vedanthvdev/commit-dock/pull/84): COMMITDOCK-81-82: IntelliGit-style panel + resource context menus
+
 ## [0.9.18] - 2026-05-14
 
 ### Changed
