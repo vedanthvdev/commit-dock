@@ -49,6 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
 
+## [0.9.17] - 2026-05-14
+
+### Changed
+
+- [#80](https://github.com/vedanthvdev/commit-dock/pull/80): COMMITDOCK-77: Harden non-interactive Git subprocess defaults
+
 ## [0.9.6] - 2026-05-13
 
 ### Chore
