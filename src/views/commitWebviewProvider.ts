@@ -16,6 +16,7 @@ import {
   pathsStagedAndDeselected,
   pathsToUnstage,
   pickPrimaryRepository,
+  pickRepositoryForUri,
 } from '../git/snapshot';
 import { fileCodiconFromPath } from '../git/file-codicons';
 import { enrichRepoSnapshotFileIcons, clearFileIconThemeCache, fileIconThemeResourceRoots } from '../icons/snapshotFileIcons';
@@ -35,8 +36,9 @@ import { listGitStashes } from '../git/stash-list';
 
 export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'commitDock.commitView';
+  static readonly panelViewType = 'commitDock.panelCommitView';
 
-  private _view?: vscode.WebviewView;
+  private readonly _webviewViews = new Set<vscode.WebviewView>();
   private readonly _repoDisposables: vscode.Disposable[] = [];
   private _debounce?: ReturnType<typeof setTimeout>;
   private _subscribedRepoRoot?: string;
@@ -123,12 +125,31 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     );
   }
 
+  private _activityBarWebviewView(): vscode.WebviewView | undefined {
+    for (const v of this._webviewViews) {
+      if (v.viewType === CommitWebviewProvider.viewType) {
+        return v;
+      }
+    }
+    return undefined;
+  }
+
+  private _postMessageToAllWebviews(message: HostToWebviewMessage): void {
+    for (const v of this._webviewViews) {
+      void v.webview.postMessage(message);
+    }
+  }
+
+  private _hasAnyWebview(): boolean {
+    return this._webviewViews.size > 0;
+  }
+
   resolveWebviewView(
     webviewView: vscode.WebviewView,
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken,
   ): void | Thenable<void> {
-    this._view = webviewView;
+    this._webviewViews.add(webviewView);
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist'), ...fileIconThemeResourceRoots()],
@@ -347,16 +368,17 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
 
     webviewView.onDidDispose(() => {
       webviewView.badge = undefined;
+      this._webviewViews.delete(webviewView);
       vscode.Disposable.from(...disposables).dispose();
+      if (this._webviewViews.size > 0) {
+        return;
+      }
       this._clearRepoSubscriptions();
       this._subscribedRepoRoot = undefined;
       this._currentRepo = undefined;
       if (this._debounce) {
         clearTimeout(this._debounce);
         this._debounce = undefined;
-      }
-      if (this._view === webviewView) {
-        this._view = undefined;
       }
     });
   }
@@ -430,6 +452,176 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     void this._gitPush(repo, true);
   }
 
+  private _resolveFileUri(uri?: vscode.Uri): vscode.Uri | undefined {
+    if (uri && uri.scheme === 'file') {
+      return uri;
+    }
+    const doc = vscode.window.activeTextEditor?.document.uri;
+    if (doc?.scheme === 'file') {
+      return doc;
+    }
+    return undefined;
+  }
+
+  private _refreshIfPrimary(repo: Repository): void {
+    if (this._currentRepo?.rootUri.fsPath === repo.rootUri.fsPath) {
+      this._postSnapshotImmediate(repo);
+    }
+  }
+
+  async stageResource(uri?: vscode.Uri): Promise<void> {
+    const api = await getGitApi({ silent: true });
+    const u = this._resolveFileUri(uri);
+    if (!api || !u) {
+      void vscode.window.showWarningMessage('Commit Dock: pick a saved file in the workspace.');
+      return;
+    }
+    const repo = pickRepositoryForUri(api, u);
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: that path is not inside an open Git repository.');
+      return;
+    }
+    const abs = path.normalize(u.fsPath);
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    const toStage = pathsToStage(repo, [abs]);
+    if (!toStage.length) {
+      void vscode.window.showInformationMessage('Commit Dock: nothing to stage for that path.');
+      return;
+    }
+    try {
+      await repo.add(toStage);
+    } catch (err) {
+      this._showGitError('Stage', err);
+      return;
+    }
+    for (const p of toStage) {
+      set.delete(p);
+    }
+    this._refreshIfPrimary(repo);
+  }
+
+  async unstageResource(uri?: vscode.Uri): Promise<void> {
+    const api = await getGitApi({ silent: true });
+    const u = this._resolveFileUri(uri);
+    if (!api || !u) {
+      void vscode.window.showWarningMessage('Commit Dock: pick a saved file in the workspace.');
+      return;
+    }
+    const repo = pickRepositoryForUri(api, u);
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: that path is not inside an open Git repository.');
+      return;
+    }
+    const abs = path.normalize(u.fsPath);
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    const toUnstage = pathsToUnstage(repo, [abs]);
+    if (!toUnstage.length) {
+      void vscode.window.showInformationMessage('Commit Dock: nothing to unstage for that path.');
+      return;
+    }
+    try {
+      await repo.revert(toUnstage);
+    } catch (err) {
+      this._showGitError('Unstage', err);
+      return;
+    }
+    for (const p of toUnstage) {
+      set.delete(p);
+    }
+    this._refreshIfPrimary(repo);
+  }
+
+  async openResourceChange(uri?: vscode.Uri): Promise<void> {
+    const api = await getGitApi({ silent: true });
+    const u = this._resolveFileUri(uri);
+    if (!api || !u) {
+      void vscode.window.showWarningMessage('Commit Dock: pick a saved file in the workspace.');
+      return;
+    }
+    const repo = pickRepositoryForUri(api, u);
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: that path is not inside an open Git repository.');
+      return;
+    }
+    await this._openDiffForPath(repo, path.normalize(u.fsPath));
+  }
+
+  async discardResource(uri?: vscode.Uri): Promise<void> {
+    const api = await getGitApi({ silent: true });
+    const u = this._resolveFileUri(uri);
+    if (!api || !u) {
+      void vscode.window.showWarningMessage('Commit Dock: pick a saved file in the workspace.');
+      return;
+    }
+    const repo = pickRepositoryForUri(api, u);
+    if (!repo) {
+      void vscode.window.showWarningMessage('Commit Dock: that path is not inside an open Git repository.');
+      return;
+    }
+    const abs = path.normalize(u.fsPath);
+    const set = this._getOrCreateDeselectedSet(repo.rootUri.fsPath);
+    const { clean, restore } = pathsToDiscard(repo, [abs]);
+    if (!clean.length && !restore.length) {
+      void vscode.window.showInformationMessage('Commit Dock: nothing to discard for that path.');
+      return;
+    }
+    if (getConfirmBeforeDiscard()) {
+      const total = clean.length + restore.length;
+      const confirm = await vscode.window.showWarningMessage(
+        `Discard ${total} file(s)? Untracked files are deleted from disk; tracked files are reverted in the working tree.`,
+        { modal: true, detail: 'Staged content is not modified. Unstage first if you need to drop index changes.' },
+        'Discard',
+      );
+      if (confirm !== 'Discard') {
+        return;
+      }
+    }
+    try {
+      if (clean.length) {
+        await repo.clean(clean);
+      }
+      if (restore.length) {
+        const r = repo as unknown as {
+          restore?: (paths: string[], options?: { staged?: boolean; ref?: string }) => Promise<void>;
+        };
+        if (typeof r.restore === 'function') {
+          try {
+            await r.restore(restore, {});
+          } catch {
+            await restoreWorkingTreePathsCli(repo.rootUri.fsPath, restore);
+          }
+        } else {
+          await restoreWorkingTreePathsCli(repo.rootUri.fsPath, restore);
+        }
+      }
+    } catch (err) {
+      this._showGitError('Discard', err);
+      return;
+    }
+    for (const p of clean) {
+      set.delete(p);
+    }
+    for (const p of restore) {
+      set.delete(p);
+    }
+    this._refreshIfPrimary(repo);
+  }
+
+  async copyResourceRelativePath(uri?: vscode.Uri): Promise<void> {
+    const u = this._resolveFileUri(uri);
+    if (!u) {
+      void vscode.window.showWarningMessage('Commit Dock: pick a saved file in the workspace.');
+      return;
+    }
+    const rel = vscode.workspace.asRelativePath(u, false);
+    if (!rel || rel === u.fsPath) {
+      void vscode.window.showWarningMessage('Commit Dock: file is outside the open workspace folders.');
+      return;
+    }
+    await vscode.env.clipboard.writeText(rel);
+    void vscode.window.showInformationMessage('Commit Dock: copied workspace-relative path.');
+  }
+
   private _showGitError(operation: string, err: unknown): void {
     const detail = err instanceof Error ? err.message : String(err);
     void vscode.window.showErrorMessage(`Commit Dock: ${operation} failed — ${detail}`);
@@ -456,8 +648,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     entries: StashSnapshotEntry[];
     detail?: string;
   }): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -465,12 +656,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'stashList',
       payload,
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private _postStashResult(ok: boolean, detail?: string): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -478,7 +668,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'stashResult',
       payload: { ok, detail },
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private async _refreshStashList(repo: Repository): Promise<void> {
@@ -645,8 +835,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private _postCommitResult(ok: boolean, detail?: string): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -654,12 +843,11 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'commitResult',
       payload: { ok, detail },
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private _postHeadCommitMessage(ok: boolean, message?: string, detail?: string): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -667,7 +855,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'headCommitMessage',
       payload: { ok, message, detail },
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private async _sendHeadCommitMessage(repo: Repository): Promise<void> {
@@ -779,8 +967,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private _postPushResult(ok: boolean, detail?: string): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -788,7 +975,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'pushResult',
       payload: { ok, detail },
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private async _gitPush(repo: Repository, forceWithLease: boolean): Promise<void> {
@@ -855,8 +1042,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _pushInitialState(): Promise<void> {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
 
@@ -881,7 +1067,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'gitStatus',
       payload: { ok, detail },
     };
-    void view.webview.postMessage(gitStatus);
+    this._postMessageToAllWebviews(gitStatus);
     this._postUiPreferences();
 
     await this._ensureRepoSubscription(api);
@@ -918,8 +1104,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _ensureRepoSubscription(api: API | undefined): Promise<void> {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
 
@@ -933,7 +1118,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         type: 'repoSnapshot',
         payload: empty,
       };
-      void view.webview.postMessage(snap);
+      this._postMessageToAllWebviews(snap);
       this._postStashListMessage({ ok: true, entries: [] });
       this._updateActivityBarBadge(undefined);
       return;
@@ -952,7 +1137,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
         type: 'repoSnapshot',
         payload: empty,
       };
-      void view.webview.postMessage(snap);
+      this._postMessageToAllWebviews(snap);
       this._postStashListMessage({ ok: true, entries: [] });
       this._updateActivityBarBadge(undefined);
       return;
@@ -999,8 +1184,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private async _postSnapshot(repo: Repository): Promise<void> {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
 
@@ -1046,21 +1230,24 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       amendHeadFiles = undefined;
     }
 
-    let payload: RepoSnapshot = amendHeadFiles ? { ...base, amendHeadFiles } : base;
-    payload = await enrichRepoSnapshotFileIcons(view.webview, payload);
+    const basePayload: RepoSnapshot = amendHeadFiles ? { ...base, amendHeadFiles } : base;
 
-    const msg: HostToWebviewMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      type: 'repoSnapshot',
-      payload,
-    };
-    void view.webview.postMessage(msg);
+    for (const view of this._webviewViews) {
+      let payload: RepoSnapshot = basePayload;
+      payload = await enrichRepoSnapshotFileIcons(view.webview, payload);
+      const msg: HostToWebviewMessage = {
+        protocolVersion: PROTOCOL_VERSION,
+        type: 'repoSnapshot',
+        payload,
+      };
+      void view.webview.postMessage(msg);
+    }
     void this._refreshStashList(repo);
     this._updateActivityBarBadge(repo);
   }
 
   private _updateActivityBarBadge(repo: Repository | undefined): void {
-    const view = this._view;
+    const view = this._activityBarWebviewView();
     if (!view) {
       return;
     }
@@ -1086,8 +1273,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   }
 
   private _postUiPreferences(): void {
-    const view = this._view;
-    if (!view) {
+    if (!this._hasAnyWebview()) {
       return;
     }
     const msg: HostToWebviewMessage = {
@@ -1095,7 +1281,7 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
       type: 'uiPreferences',
       payload: { showCommitAndPush: getShowCommitAndPushButton() },
     };
-    void view.webview.postMessage(msg);
+    this._postMessageToAllWebviews(msg);
   }
 
   private _getHtmlForWebview(webview: vscode.Webview, nonce: string): string {

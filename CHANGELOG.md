@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Placement:** setting **`commitDock.commitViewPlacement`** (`activityBar` default, `panel`, or `both`) controls whether the Commit webview appears in the **activity bar**, the **bottom panel** (IntelliJ-style, next to Terminal / Problems), or **both**. The same webview provider powers **`commitDock.commitView`** and **`commitDock.panelCommitView`** with shared Git subscriptions and mirrored updates.
+- **Context menus:** **Commit Dock** submenu on **Explorer** and **editor** right-click for **`file:`** resources — **Stage**, **Unstage**, **Open changes** (`git.openChange`), **Discard** (honours **`commitDock.confirmBeforeDiscard`**), **Copy workspace-relative path**, and **Focus Commit view**. Repository resolution uses the Git repo that contains the clicked path (see **`pickRepositoryForUri`**).
 - **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **16**).
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.

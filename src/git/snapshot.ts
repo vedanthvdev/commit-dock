@@ -5,6 +5,25 @@ import type { RepoSnapshot, SnapshotFile, SnapshotGroupId } from '../protocol';
 import { fileCodiconFromPath } from './file-codicons';
 import { mergedUntrackedChanges, unstagedWorkingTreeChanges } from './repo-change-model';
 
+/** Repository that contains `uri` (file or folder), if Git has opened it. */
+export function pickRepositoryForUri(api: API, uri: vscode.Uri | undefined): Repository | undefined {
+  if (!uri || uri.scheme !== 'file') {
+    return undefined;
+  }
+  const direct = api.getRepository(uri);
+  if (direct) {
+    return direct;
+  }
+  const folder = vscode.workspace.getWorkspaceFolder(uri);
+  if (folder) {
+    const byFolder = api.getRepository(folder.uri);
+    if (byFolder) {
+      return byFolder;
+    }
+  }
+  return undefined;
+}
+
 export function pickPrimaryRepository(api: API): Repository | undefined {
   const editor = vscode.window.activeTextEditor;
   if (editor?.document.uri) {

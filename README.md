@@ -12,6 +12,7 @@
 
 | Setting | Default | Description |
 | --- | --- | --- |
+| `commitDock.commitViewPlacement` | `activityBar` | `activityBar` (default), bottom `panel` (next to Terminal / Problems), or `both` (mirrors IntelliGit-style split). |
 | `commitDock.snapshotDebounceMs` | `150` | Wait after Git reports a change before rebuilding the file list (0–2000 ms). |
 | `commitDock.confirmBeforeDiscard` | `true` | If `false`, **Discard** runs immediately without a confirmation dialog. |
 | `commitDock.showActivityBarBadge` | `true` | When `true`, the Commit Dock activity bar icon shows how many paths have pending work in the **primary** repository (same scope as the Commit view). |
@@ -20,6 +21,12 @@
 
 Configure under **Settings → Extensions → Commit Dock**, or edit `settings.json`.
 
+## Explorer & editor context menus
+
+Right-click a **saved file** in the **Explorer** or editor tab / editor surface to open the **Commit Dock** submenu (same pattern as IntelliGit’s Git submenu on `editor/context`). From there you can **stage**, **unstage**, **open changes** (built-in `git.openChange`), **discard** (respects **`commitDock.confirmBeforeDiscard`**), **copy a workspace-relative path**, or **focus the Commit view**.
+
+Menus appear for `file:` resources; actions resolve the Git repository that contains the path (not only the “primary” repo used by the Commit webview). When a change happens in the **primary** repository, the Commit view refreshes as usual.
+
 ## Commands and keybindings
 
 All commands appear under the **Commit Dock** category in the Command Palette (**Ctrl+Shift+P** / **Cmd+Shift+P**).
@@ -27,6 +34,11 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 | Command id | Title |
 | --- | --- |
 | `commitDock.showCommitView` | Focus Commit View |
+| `commitDock.stageResource` | Stage the selected file (Explorer / editor context) |
+| `commitDock.unstageResource` | Unstage the selected file |
+| `commitDock.openResourceChange` | Open built-in changes for the selected file |
+| `commitDock.discardResource` | Discard working tree / untracked changes for the selected file |
+| `commitDock.copyResourceRelativePath` | Copy `workspace.asRelativePath` for the selected file |
 | `commitDock.checkoutLocalBranch` | Checkout Local Branch… |
 | `commitDock.createBranchFromHead` | Create Branch from HEAD… |
 | `commitDock.copyHeadRevision` | Copy HEAD revision (full SHA) to the clipboard |
@@ -43,8 +55,8 @@ All commands appear under the **Commit Dock** category in the Command Palette (*
 
 ## Limitations
 
-- **One active repository** at a time: the extension picks a primary repo from the workspace (active editor or first folder), not a manual multi-repo switcher.
-- **Webview workflow:** the file list and commit UI live in the **Commit** side bar view, not the built-in **Source Control** tree. Git state still comes from **`vscode.git`**.
+- **One active repository** at a time: the Commit webview picks a **primary** repo from the workspace (active editor or first folder). Context-menu actions resolve the repo that **owns the file** you clicked, which may differ from the primary repo until you align folders.
+- **Webview workflow:** the file list and commit UI live in the **Commit** view (activity bar and/or bottom **panel**, depending on **`commitDock.commitViewPlacement`**), not the built-in **Source Control** tree. Git state still comes from **`vscode.git`**.
 - **Stash list** runs `git stash list` with the `git` on your **`PATH`** for that folder; it is independent of VS Code’s bundled Git path.
 - **Merge conflicts** must be resolved with your usual tools; Commit Dock surfaces conflicted paths and blocks commit/push while conflicts exist.
 
