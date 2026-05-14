@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Git subprocesses:** non-interactive `git` calls from the extension host now consistently use **`windowsHide: true`** and **`shell: false`** (via a shared helper), and read-only commands that can invoke a pager also pass **`-c core.pager=cat`**, avoiding hangs from user-configured pagers and transient console flashes on Windows.
+
 ### Added
 
-- **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **17**).
+- **Repository chrome:** **`headLabel`** now includes optional **↑ahead / ↓behind** counts from `vscode.git` when `HEAD` has an upstream, still shown beside the repo folder in the Commit webview (protocol **16**).
 - **Merge conflicts:** palette command **Open First Merge Conflict (Built-in Diff)** runs the built-in Git change view for the first conflicted path in the primary repository (same `git.openChange` path as clicking a row in the Commit webview).
 - **Merge conflict banner:** when conflicts are present, the change list shows a short callout with **Open first conflict**, which asks the host to run the same built-in diff command as the palette entry.
 - **Stash:** palette **Stash Working Tree (with message)…** creates a stash (including unversioned files) using the same helper as Quick stash, with an editable default message.
@@ -17,15 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **History:** palette **Show Recent Commit Graph (Output)** prints a bounded `git log --graph --oneline --decorate` view into **Commit Dock: Graph** (ASCII graph, read-only).
 - **Remote sync:** palette **Pull (Fast-Forward Only)** runs `git pull --ff-only` when the working tree is clean, surfacing combined stdout/stderr in a short toast.
 - **Remote sync:** palette **Fetch Remotes and Refresh Commit View** runs `git fetch --all --prune` for the primary repository, then triggers **Refresh Commit View** on success.
-- **Remote sync:** palette **Show Git Remotes (Output)** prints `git remote -v` into **Commit Dock: Remotes** (read-only, bounded output).
 - **Status:** palette **Show Short Git Status (Output)** prints `git status -sb --untracked-files=all` into **Commit Dock: Status** (read-only, bounded output).
-- **Diff:** palette **Show Working Tree Diff Stat (Output)** prints `git diff --stat HEAD` into **Commit Dock: Diff stat** (read-only, bounded output).
 - **Compare:** palette **Compare Working Tree with Ref (name-status)…** prints `git diff --name-status <ref>...HEAD` to a **Commit Dock: Compare** output channel (read-only, bounded output).
 - **Workspace:** palette **Copy Active Editor Relative Path** copies `workspace.asRelativePath` for the current file editor when it is a `file:` URI under the open workspace.
-- **Workspace:** palette **Reveal Primary Repository in OS** opens the OS file manager at the primary repository root via the built-in `revealFileInOS` command.
-- **Workspace:** palette **Open Terminal at Primary Repository** creates a new integrated terminal with `cwd` set to the primary repository root.
-- **Workspace:** palette **Copy Primary Repository Root** copies the absolute filesystem path of the primary repository root to the clipboard.
-- **Commit message:** palette **Insert Recent Commit Subject…** quick-picks recent `git log` subjects and inserts them into the Commit Dock message field (host→webview `commitMessageInsert`, protocol **17**).
 - **Copy HEAD revision:** setting **`commitDock.copyHeadRevisionFormat`** (`full` default, or `short` 7‑char prefix) controls what **Copy HEAD Revision** writes to the clipboard.
 - **Workspace:** palette **Copy HEAD Branch or Ref** copies the current branch name or detached `HEAD` commit id for the primary repository (no upstream decoration).
 - **Settings:** palette **Open Commit Dock Settings** runs the workbench **Extension Settings** view filtered to Commit Dock (`workbench.action.openExtensionSettings`).
@@ -33,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **History:** palette **Cherry-pick Commit…** runs `git cherry-pick` for a validated SHA when the working tree is clean (guarded helper, not a full interactive cherry-pick flow).
 - **History:** palette **Revert Commit…** runs `git revert --no-edit` after a modal confirm, with the same clean-tree guard as cherry-pick.
 - **Activity bar badge:** optional count of pending change paths (merge conflicts, staged, unstaged, unversioned) on the Commit Dock icon for the primary repository. Toggle with **`commitDock.showActivityBarBadge`** (default on).
-- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **17**) so the webview can hide **Commit and Push** without a reload.
+- **Commit & Push visibility:** optional **`commitDock.showCommitAndPushButton`** (default on) plus host **`uiPreferences`** (protocol **16**) so the webview can hide **Commit and Push** without a reload.
 - **Stash shelf copy:** stash tab reads **Shelf** with honest `git stash` tooltips on Apply / Pop / Drop.
 - **External merge tool:** **`commitDock.externalMergeToolPath`** plus **Open External Merge Tool for Conflict…** (palette) launches a user-provided merge tool with one conflict path argument (no shell).
 - **Change list:** change groups now insert lightweight **directory subheaders** (first path segment) while preserving per-row selection and conflict affordances.
@@ -41,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Protocol:** host↔webview version is now **17** (adds host→webview `commitMessageInsert` for recent commit subjects).
+- **Protocol:** host↔webview version is now **16** (new webview→host message for the merge-conflict banner shortcut).
 - **Docs:** clarify that Marketplace **`/items?itemName=…`** pages can 404 in a browser even when `vsce show` succeeds; document `vscode:extension/…` and `@id:…` install paths.
 - **VSIX:** exclude `.github/**` and `vitest.config.ts` from the packaged extension (smaller artifact, less noise in the installed tree).
 - **Docs:** step-by-step **VS Code Marketplace** publishing (`VSCE_PAT`, re-run **Release**, local `npm run publish:marketplace`).
@@ -50,66 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Post-1.0 niceties (multi-repo picker, richer stash create) as separate tickets.
-
-## [0.9.16] - 2026-05-13
-
-### Changed
-
-- [#79](https://github.com/vedanthvdev/commit-dock/pull/79): COMMITDOCK-76: Git remotes output
-
-## [0.9.15] - 2026-05-13
-
-### Changed
-
-- [#77](https://github.com/vedanthvdev/commit-dock/pull/77): COMMITDOCK-74: Copy primary repository root
-
-## [0.9.14] - 2026-05-13
-
-### Changed
-
-- [#72](https://github.com/vedanthvdev/commit-dock/pull/72): COMMITDOCK-69: Short git status output
-
-## [0.9.13] - 2026-05-13
-
-### Changed
-
-- [#71](https://github.com/vedanthvdev/commit-dock/pull/71): COMMITDOCK-68: Copy HEAD branch or ref
-
-## [0.9.12] - 2026-05-13
-
-### Changed
-
-- [#67](https://github.com/vedanthvdev/commit-dock/pull/67): COMMITDOCK-64: Insert recent commit subject
-
-## [0.9.11] - 2026-05-13
-
-### Changed
-
-- [#65](https://github.com/vedanthvdev/commit-dock/pull/65): COMMITDOCK-62: Reveal primary repository in OS
-
-## [0.9.10] - 2026-05-13
-
-### Changed
-
-- [#61](https://github.com/vedanthvdev/commit-dock/pull/61): COMMITDOCK-28-subdirs: Directory subheaders in change lists
-
-## [0.9.9] - 2026-05-13
-
-### Changed
-
-- [#60](https://github.com/vedanthvdev/commit-dock/pull/60): COMMITDOCK-56: Recent commit graph output
-
-## [0.9.8] - 2026-05-13
-
-### Changed
-
-- [#59](https://github.com/vedanthvdev/commit-dock/pull/59): COMMITDOCK-55: Copy active editor relative path
-
-## [0.9.7] - 2026-05-13
-
-### Changed
-
-- [#57](https://github.com/vedanthvdev/commit-dock/pull/57): COMMITDOCK-53: Compare working tree with ref
 
 ## [0.9.6] - 2026-05-13
 

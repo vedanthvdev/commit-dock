@@ -3,6 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
+import { gitExecFileBase } from './git-exec';
+
 const execFileAsync = promisify(execFile);
 
 /** Avoid pathological `stash list` output tying up memory or UI. */
@@ -46,8 +48,7 @@ export async function listGitStashes(repoRoot: string): Promise<StashListEntry[]
     cwd,
     encoding: 'utf8',
     maxBuffer: 2 * 1024 * 1024,
-    windowsHide: true,
-    shell: false,
+    ...gitExecFileBase,
   });
   const lines = stdout
     .split('\n')

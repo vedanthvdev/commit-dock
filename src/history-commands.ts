@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
+import { gitExecFileBase } from './git/git-exec';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -13,7 +14,7 @@ function isLikelySha(token: string): boolean {
 
 async function requireCleanWorkingTree(root: string, action: string): Promise<boolean> {
   try {
-    const r = await execFileAsync('git', ['status', '--porcelain'], { cwd: root, maxBuffer: 2_000_000 });
+    const r = await execFileAsync('git', ['status', '--porcelain'], { cwd: root, maxBuffer: 2_000_000, ...gitExecFileBase });
     if (r.stdout.trim().length > 0) {
       void vscode.window.showWarningMessage(
         `Commit Dock: commit or stash your changes before ${action} (working tree must be clean).`,
@@ -59,7 +60,7 @@ export function registerHistoryCommands(context: vscode.ExtensionContext): void 
       }
       const sha = raw.trim();
       try {
-        await execFileAsync('git', ['cherry-pick', sha], { cwd: root, maxBuffer: 2_000_000 });
+        await execFileAsync('git', ['cherry-pick', sha], { cwd: root, maxBuffer: 2_000_000, ...gitExecFileBase });
         void vscode.window.showInformationMessage(`Commit Dock: cherry-picked ${sha.slice(0, 7)}.`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -106,7 +107,7 @@ export function registerHistoryCommands(context: vscode.ExtensionContext): void 
         return;
       }
       try {
-        await execFileAsync('git', ['revert', '--no-edit', sha], { cwd: root, maxBuffer: 2_000_000 });
+        await execFileAsync('git', ['revert', '--no-edit', sha], { cwd: root, maxBuffer: 2_000_000, ...gitExecFileBase });
         void vscode.window.showInformationMessage(`Commit Dock: reverted ${sha.slice(0, 7)}.`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

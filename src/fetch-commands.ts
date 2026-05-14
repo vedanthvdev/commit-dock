@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
+import { gitExecFileBase } from './git/git-exec';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -17,7 +18,7 @@ export function registerFetchCommands(context: vscode.ExtensionContext): void {
       }
       const root = repo.rootUri.fsPath;
       try {
-        await execFileAsync('git', ['fetch', '--all', '--prune'], { cwd: root, maxBuffer: 20_000_000 });
+        await execFileAsync('git', ['fetch', '--all', '--prune'], { cwd: root, maxBuffer: 20_000_000, ...gitExecFileBase });
         void vscode.window.showInformationMessage('Commit Dock: fetch completed.');
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);

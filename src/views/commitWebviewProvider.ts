@@ -1,5 +1,3 @@
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -34,8 +32,6 @@ import {
 } from '../protocol';
 import { ForcePushMode, type API, type Repository } from '../git/git-api';
 import { listGitStashes } from '../git/stash-list';
-
-const execFileAsync = promisify(execFile);
 
 export class CommitWebviewProvider implements vscode.WebviewViewProvider {
   static readonly viewType = 'commitDock.commitView';
@@ -123,11 +119,6 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     this._context.subscriptions.push(
       vscode.commands.registerCommand('commitDock.refreshCommitView', () => {
         void this._onGitContextMaybeChanged();
-      }),
-    );
-    this._context.subscriptions.push(
-      vscode.commands.registerCommand('commitDock.insertRecentCommitSubject', async () => {
-        await this.insertRecentCommitSubjectIntoMessage();
       }),
     );
   }
@@ -651,71 +642,6 @@ export class CommitWebviewProvider implements vscode.WebviewViewProvider {
     } finally {
       this._postSnapshotImmediate(repo);
     }
-  }
-
-
-
-  private _postCommitMessageInsert(text: string): void {
-    const view = this._view;
-    if (!view) {
-      return;
-    }
-    const safe = text.length > 8_000 ? `${text.slice(0, 8_000)}…` : text;
-    const msg: HostToWebviewMessage = {
-      protocolVersion: PROTOCOL_VERSION,
-      type: 'commitMessageInsert',
-      payload: { text: safe },
-    };
-    void view.webview.postMessage(msg);
-  }
-
-  private async insertRecentCommitSubjectIntoMessage(): Promise<void> {
-    const api = await getGitApi({ silent: true });
-    const repo = this._currentRepo ?? (api ? pickPrimaryRepository(api) : undefined);
-    if (!repo) {
-      void vscode.window.showWarningMessage('Commit Dock: no Git repository is active.');
-      return;
-    }
-    if (!this._view) {
-      void vscode.window.showWarningMessage('Commit Dock: open the Commit view (Commit Dock) first.');
-      return;
-    }
-    let stdout: string;
-    try {
-      const r = await execFileAsync('git', ['log', '-n', '30', '--format=%s'], {
-        cwd: repo.rootUri.fsPath,
-        maxBuffer: 2_000_000,
-      });
-      stdout = r.stdout;
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      void vscode.window.showErrorMessage(`Commit Dock: could not read recent commits — ${detail}`);
-      return;
-    }
-    const lines = stdout
-      .split(/\r?\n/)
-      .map((l) => l.trimEnd())
-      .filter((l) => l.length > 0);
-    const seen = new Set<string>();
-    const unique: string[] = [];
-    for (const l of lines) {
-      if (seen.has(l)) {
-        continue;
-      }
-      seen.add(l);
-      unique.push(l);
-    }
-    if (unique.length === 0) {
-      void vscode.window.showInformationMessage('Commit Dock: no recent commits found.');
-      return;
-    }
-    const picked = await vscode.window.showQuickPick(unique, {
-      placeHolder: 'Insert a recent commit subject into the Commit message',
-    });
-    if (!picked) {
-      return;
-    }
-    this._postCommitMessageInsert(picked);
   }
 
   private _postCommitResult(ok: boolean, detail?: string): void {

@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as vscode from 'vscode';
+import { gitExecFileBase } from './git/git-exec';
 import { getGitApi } from './git/api';
 import { pickPrimaryRepository } from './git/snapshot';
 
@@ -49,10 +50,15 @@ export function registerCompareCommands(context: vscode.ExtensionContext): void 
       const token = ref.trim();
       const range = `${token}...HEAD`;
       try {
-        const { stdout, stderr } = await execFileAsync('git', ['diff', '--name-status', range], {
-          cwd: root,
-          maxBuffer: 4_000_000,
-        });
+        const { stdout, stderr } = await execFileAsync(
+          'git',
+          ['-c', 'core.pager=cat', 'diff', '--name-status', range],
+          {
+            cwd: root,
+            maxBuffer: 4_000_000,
+            ...gitExecFileBase,
+          },
+        );
         const combined = `${stdout}${stderr}`.trimEnd();
         const capped =
           combined.length > MAX_OUT_CHARS ? `${combined.slice(0, MAX_OUT_CHARS)}\n… (truncated)` : combined;

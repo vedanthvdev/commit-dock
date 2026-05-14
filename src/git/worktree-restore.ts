@@ -2,6 +2,8 @@ import { execFile } from 'node:child_process';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 
+import { gitExecFileBase } from './git-exec';
+
 const execFileAsync = promisify(execFile);
 
 const MAX_PATHS_PER_INVOCATION = 100;
@@ -39,8 +41,7 @@ export async function restoreWorkingTreePathsCli(repoRoot: string, absolutePaths
     const baseOpts = {
       encoding: 'utf8' as const,
       maxBuffer: 32 * 1024 * 1024,
-      windowsHide: true,
-      shell: false as const,
+      ...gitExecFileBase,
     };
 
     try {
